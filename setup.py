@@ -42,6 +42,7 @@ setup(
             "sphinx-rtd-theme>=2.0.0",
             "sphinx-design>=0.5.0",
             "sphinx-copybutton>=0.5.2",
+            "sphinxcontrib-mermaid>=0.9.0",
         ],
         "docs": [
             "Sphinx>=7.0.0",
