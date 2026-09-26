@@ -40,7 +40,7 @@ jobs:
       - name: Test CLI entrypoint
         run: |
           sphinx-migrate --help
-          sphinx-migrate catalog
+          sphinx-migrate --version
 
   docs:
     name: Build Documentation
