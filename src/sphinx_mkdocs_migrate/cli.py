@@ -16,6 +16,7 @@ from .validator.verifier import TransformationValidator
 console = Console()
 
 @click.group()
+@click.version_option(version="0.1.0b1", prog_name="sphinx-migrate")
 def main():
     """Deterministic, version-aware CLI toolkit for migrating MkDocs to Sphinx + MyST."""
     pass
