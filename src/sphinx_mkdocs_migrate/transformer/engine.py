@@ -113,7 +113,7 @@ class TransformationEngine:
         # Check if root index.md exists; if not, create one
         root_index_path = docs_dir / "index.md"
         root_index_rel = f"{docs_dir_name}/index.md" if docs_dir_name else "index.md"
-        has_root_index = any(doc.target_file in (root_index_rel, "index.md", f"{docs_dir_name}/index.md") for doc in doc_results)
+        has_root_index = any(Path(doc.target_file).as_posix() in (Path(root_index_rel).as_posix(), "index.md", f"{docs_dir_name}/index.md") for doc in doc_results)
         
         if not has_root_index:
             toctree_block = self._generate_semantic_toctree(nav_entries, all_md_files, docs_dir)

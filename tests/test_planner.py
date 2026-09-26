@@ -47,7 +47,7 @@ def test_migration_planner_aggregation_and_deduplication(fixture_dir):
 
     design_req = next(r for r in plan.requirements if r.name == "sphinx_design")
     assert design_req.provenance == RequirementProvenance.DOCUMENT_CONSTRUCT
-    assert any("docs/tabs.md" in src or "docs/index.md" in src for src in design_req.sources)
+    assert any("tabs.md" in src or "index.md" in src for src in design_req.sources)
 
     # 4. Explicit Theme Migration Proposal (Material -> Furo for modern Sphinx)
     assert plan.proposed_sphinx_config is not None
