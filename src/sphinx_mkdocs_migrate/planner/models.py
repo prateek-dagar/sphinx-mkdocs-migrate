@@ -68,7 +68,7 @@ class ManualReviewItem(BaseModel):
 class MigrationPlanMetadata(BaseModel):
     """Metadata about the generation session (separated to guarantee plan determinism)."""
     generated_at: str
-    planner_version: str = "0.1.0"
+    planner_version: str = "0.1.0b1"
 
 class MigrationPlan(BaseModel):
     """Comprehensive, deterministic repository-wide migration plan without mutating disk."""

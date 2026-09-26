@@ -7,7 +7,7 @@ from pathlib import Path
 project = "sphinx-mkdocs-migrate"
 copyright = "2026, Prateek Dagar"
 author = "Prateek Dagar"
-release = "0.1.0"
+release = "0.1.0b1"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
