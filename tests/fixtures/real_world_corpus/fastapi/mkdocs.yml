@@ -1,0 +1,12 @@
+site_name: FastAPI
+theme:
+  name: material
+markdown_extensions:
+  - admonition
+  - pymdownx.tabbed
+  - pymdownx.details
+  - pymdownx.snippets
+  - pymdownx.superfences
+nav:
+  - Tutorial: index.md
+  - Query Parameters: query.md

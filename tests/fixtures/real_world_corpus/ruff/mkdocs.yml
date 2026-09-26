@@ -1,0 +1,12 @@
+site_name: Ruff Documentation
+theme:
+  name: material
+markdown_extensions:
+  - admonition
+  - pymdownx.tabbed
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+nav:
+  - Overview: index.md
+  - Rules: rules.md
+  - Configuration: configuration.md

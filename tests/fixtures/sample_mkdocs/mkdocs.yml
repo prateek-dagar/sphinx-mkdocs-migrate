@@ -1,0 +1,21 @@
+site_name: Sample Project Docs
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - content.code.copy
+nav:
+  - Home: index.md
+  - API Guide:
+      - Client: api.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed

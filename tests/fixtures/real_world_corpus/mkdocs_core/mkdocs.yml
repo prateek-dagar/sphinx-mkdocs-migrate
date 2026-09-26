@@ -1,0 +1,9 @@
+site_name: MkDocs
+theme:
+  name: readthedocs
+markdown_extensions:
+  - admonition
+  - def_list
+nav:
+  - User Guide: index.md
+  - Plugins: plugins.md
