@@ -38,6 +38,17 @@ setup(
             "pytest>=7.0",
             "build>=1.0.0",
             "twine>=4.0.0",
+            "furo>=2024.1.0",
+            "sphinx-rtd-theme>=2.0.0",
+            "sphinx-design>=0.5.0",
+            "sphinx-copybutton>=0.5.2",
+        ],
+        "docs": [
+            "Sphinx>=7.0.0",
+            "myst-parser>=2.0.0",
+            "furo>=2024.1.0",
+            "sphinx-design>=0.5.0",
+            "sphinx-copybutton>=0.5.2",
         ],
     },
     entry_points={
