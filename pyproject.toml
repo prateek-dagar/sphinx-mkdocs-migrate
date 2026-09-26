@@ -82,3 +82,8 @@ include = [
     "/pyproject.toml",
     "/LICENSE",
 ]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["scratch", "research", ".venv", "docs", "dist", "build"]
