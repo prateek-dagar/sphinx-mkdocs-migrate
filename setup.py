@@ -10,8 +10,8 @@ setup(
     description="Deterministic, evidence-driven analyzer and migration engine from MkDocs to Sphinx + MyST",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Sphinx Migration Team",
-    author_email="maintainers@example.org",
+    author="Prateek Dagar",
+    author_email="prateek0508dagar@gmail.com",
     url="https://github.com/prateek-dagar/sphinx-mkdocs-migrate",
     project_urls={
         "Homepage": "https://github.com/prateek-dagar/sphinx-mkdocs-migrate",
