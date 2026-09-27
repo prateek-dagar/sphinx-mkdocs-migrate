@@ -185,16 +185,40 @@ class TransformationEngine:
         )
 
     def _generate_semantic_toctree(self, nav_entries: List[NavigationItem], all_files: List[Path], docs_dir: Path) -> Optional[str]:
-        """Generates a root MyST toctree directive strictly following semantic MkDocs navigation hierarchy."""
+        """Generates a root MyST toctree directive preserving resolved navigation semantics deterministically."""
         ordered_docnames: List[str] = []
 
         def collect_nav_docs(items: List[NavigationItem]):
             for item in items:
                 if item.path and not item.path.startswith("http"):
-                    clean_p = item.path
+                    clean_p = item.path.strip()
+                    # Handle literate-nav wildcards (e.g. '... | reference/pythonjsonlogger/*' -> 'reference/index' or resolved subdirs)
+                    if "|" in clean_p:
+                        parts = [p.strip() for p in clean_p.split("|") if p.strip()]
+                        for part in parts:
+                            if part != "..." and "*" in part:
+                                base_dir_match = part.replace("/*", "").replace("*", "").strip("/")
+                                target_dir = docs_dir / base_dir_match
+                                if (target_dir / "index.md").exists():
+                                    clean_p = f"{base_dir_match}/index" if base_dir_match else "index"
+                                elif target_dir.exists() and target_dir.is_dir():
+                                    # Expand sorted child markdown documents deterministically
+                                    child_mds = sorted([f for f in target_dir.rglob("*.md") if f.name != "index.md"])
+                                    for cm in child_mds:
+                                        rel_c = cm.relative_to(docs_dir).with_suffix("").as_posix()
+                                        if rel_c not in ordered_docnames:
+                                            ordered_docnames.append(rel_c)
+                                    clean_p = "..."  # Mark as expanded so it's not appended below
+                                else:
+                                    clean_p = base_dir_match
+                                break
+                            elif part != "...":
+                                clean_p = part
+                                break
                     if clean_p.endswith(".md"):
                         clean_p = clean_p[:-3]
-                    if clean_p != "index" and clean_p not in ordered_docnames:
+                    clean_p = clean_p.replace("\\", "/")
+                    if clean_p != "index" and clean_p not in ordered_docnames and not clean_p.startswith("..."):
                         ordered_docnames.append(clean_p)
                 if item.children:
                     collect_nav_docs(item.children)
@@ -202,11 +226,11 @@ class TransformationEngine:
         if nav_entries:
             collect_nav_docs(nav_entries)
         else:
-            # Completeness fallback if no nav defined: preserve discovered documents
+            # Fallback if no nav defined: preserve discovered documents deterministically
             for f in all_files:
                 rel = f.relative_to(docs_dir)
                 if rel.name != "index.md":
-                    docname = str(rel.with_suffix(""))
+                    docname = rel.with_suffix("").as_posix()
                     if docname not in ordered_docnames:
                         ordered_docnames.append(docname)
 

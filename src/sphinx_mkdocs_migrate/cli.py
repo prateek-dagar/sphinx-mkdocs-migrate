@@ -232,7 +232,8 @@ def migrate(project_path: Path, write_to_disk: bool, overwrite_conf: bool, show_
 @click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path), default=".")
 @click.option("--build/--no-build", "run_sphinx_build", default=True, help="Run an actual isolated Sphinx HTML build during validation.")
 @click.option("--strict", "strict_warnings", is_flag=True, default=False, help="Fail validation if Sphinx produces any warnings (-W).")
-def validate(project_path: Path, run_sphinx_build: bool, strict_warnings: bool):
+@click.option("--show-warnings", "show_warnings", is_flag=True, default=False, help="Display detailed Sphinx warnings in validation report.")
+def validate(project_path: Path, run_sphinx_build: bool, strict_warnings: bool, show_warnings: bool):
     """Validates existing or migrated Sphinx configuration and documents."""
     console.print(f"[bold blue]Validating documentation structure for:[/bold blue] {project_path.resolve()}")
     console.print()
@@ -248,6 +249,9 @@ def validate(project_path: Path, run_sphinx_build: bool, strict_warnings: bool):
         console.print(f"[bold green]✔ Validation Passed:[/bold green] All directives and conf.py are valid{build_str}.")
         if run_sphinx_build and v_report.sphinx_warning_count > 0:
             console.print(f"[dim yellow]Sphinx Warnings ({v_report.sphinx_warning_count}): Run with --strict to treat as errors.[/dim yellow]")
+            if show_warnings:
+                for idx, w in enumerate(v_report.sphinx_warnings, 1):
+                    console.print(f"  [yellow]•[/yellow] [dim]{w.strip()}[/dim]")
     else:
         console.print(f"[bold red]✖ Validation Failed:[/bold red] {v_report.errors_count} error(s) detected.")
         for issue in v_report.issues:
