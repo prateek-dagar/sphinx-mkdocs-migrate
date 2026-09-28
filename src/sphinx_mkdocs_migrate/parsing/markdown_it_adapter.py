@@ -241,15 +241,27 @@ class MarkdownIRBuilder:
             m_api = RE_MKDOCSTRINGS.match(s_line)
             if m_api:
                 flush_chunk()
+                api_start_l = line_map[i]
+                api_raw_lines = [line]
+                i += 1
+                while i < n:
+                    next_l = lines[i]
+                    if next_l.startswith("    ") or next_l.startswith("\t"):
+                        s_next = next_l.strip()
+                        if s_next.startswith(":") or s_next.startswith("options:"):
+                            api_raw_lines.append(next_l)
+                            i += 1
+                            continue
+                    break
+                api_end_l = line_map[i - 1]
                 api_node = BaseIRNode(
                     kind=NodeKind.API_DIRECTIVE,
-                    start_line=line_map[i],
-                    end_line=line_map[i],
-                    raw_text=line,
+                    start_line=api_start_l,
+                    end_line=api_end_l,
+                    raw_text="\n".join(api_raw_lines),
                     metadata={"symbol": m_api.group("symbol")}
                 )
                 nodes.append(api_node)
-                i += 1
                 continue
 
             # 6. Snippet Includes (--8<-- "...")

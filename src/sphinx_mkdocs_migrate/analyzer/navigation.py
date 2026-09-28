@@ -70,11 +70,15 @@ class NavigationAnalyzer:
             except Exception:
                 pass
 
-        # Detect missing referenced files (in nav, but does not exist on disk)
+        # Detect missing referenced files vs generated wildcard/pipeline navigation references
         missing_refs: List[str] = []
+        generated_wildcard_refs: List[str] = []
         for ref in referenced_paths:
             if ref not in discovered_rel_paths and not ref.startswith("http"):
-                missing_refs.append(ref)
+                if "..." in ref or "*" in ref or "|" in ref:
+                    generated_wildcard_refs.append(ref)
+                else:
+                    missing_refs.append(ref)
 
         # Detect orphan documents (on disk, but not in nav, excluding index.md)
         orphans: List[str] = []
@@ -87,6 +91,7 @@ class NavigationAnalyzer:
             total_nav_entries=total_entries,
             max_depth=depth,
             missing_references=sorted(missing_refs),
+            generated_wildcard_references=sorted(generated_wildcard_refs),
             orphan_documents=sorted(orphans),
             tree=parsed_items
         )

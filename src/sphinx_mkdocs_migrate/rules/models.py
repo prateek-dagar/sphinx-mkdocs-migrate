@@ -60,9 +60,15 @@ class MigrationRule(BaseModel):
                     manual_reasons.append(f"Unsupported custom admonition type '{adm_type}'")
 
         elif self.source_kind == NodeKind.API_DIRECTIVE:
-            is_manual = True
             symbol = node.metadata.get("symbol", "<unknown>")
-            manual_reasons.append(f"Review API symbol '{symbol}' docstring convention and select autodoc directive.")
+            if self.classification == Classification.MANUAL:
+                is_manual = True
+                manual_reasons.append(f"Manual review required for API symbol '{symbol}'.")
+            elif not symbol or symbol == "<unknown>":
+                is_manual = True
+                manual_reasons.append(f"Review API symbol '{symbol}' docstring convention and select autodoc directive.")
+            else:
+                applied_changes.append(f"map_api_directive_{symbol}")
 
         elif self.source_kind == NodeKind.LINK_REF:
             href = node.metadata.get("href", "")

@@ -1,9 +1,0 @@
-site_name: pyjanitor
-theme:
-  name: readthedocs
-markdown_extensions:
-  - admonition
-  - pymdownx.snippets
-nav:
-  - Welcome: index.md
-  - Functions: functions.md
