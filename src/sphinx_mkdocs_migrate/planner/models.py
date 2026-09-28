@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Data models for deterministic repository-wide MigrationPlan and aggregated inventories."""
 import hashlib
 import json
@@ -32,6 +33,7 @@ class GeneratedDocumentProposal(BaseModel):
     generator_script: Optional[str] = None          # e.g. "scripts/gen_ref_nav.py"
     provenance: RequirementProvenance = RequirementProvenance.GENERATED_PIPELINE
     rationale: str
+    flow_actions: List[DocumentFlowAction] = Field(default_factory=list)
 
 class RequirementItem(BaseModel):
     """Traceable dependency requirement (extension or package) with provenance."""

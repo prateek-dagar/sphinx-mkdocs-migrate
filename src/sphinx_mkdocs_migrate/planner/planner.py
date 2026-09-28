@@ -47,6 +47,7 @@ from ..rules.models import MigrationAction
 from ..parsing.markdown import MarkdownParser
 from ..parsing.markdown_ir import DocumentIR
 from ..parsing.flow_extractor import DocumentFlowExtractor
+from ..parsing.html_flow_parser import HtmlFlowParser, HtmlFlowRole
 from ..parsing.doc_ir import (
     DocumentElementType,
     HeadingElement,
@@ -528,22 +529,167 @@ class MigrationPlanner:
                     # disabled because these migration proposals already own
                     # the destination pages and their local navigation.
                     doc_title = parts[-1]
-                    if is_pkg_index:
-                        doc_content = f"# {doc_title}\n\n"
-                        if module_docstring:
-                            doc_content += f"{module_docstring.strip()}\n\n"
-                        doc_content += f"```{{eval-rst}}\n.. currentmodule:: {module_qualname}\n\n.. autosummary::\n   :nosignatures:\n\n"
+                    flow_actions: List[DocumentFlowAction] = []
+                    order_idx = 0
+
+                    # Check if rendered HTML from mkdocs build exists
+                    site_dir_cand = self.project_root / "site"
+                    cand_html_paths = [
+                        site_dir_cand / "reference" / ("/".join(parts)) / "index.html",
+                        site_dir_cand / "reference" / f"{'/'.join(parts)}.html",
+                    ]
+
+                    found_html = None
+                    for cand in cand_html_paths:
+                        if cand.exists():
+                            found_html = cand
+                            break
+
+                    if found_html:
+                        html_parser = HtmlFlowParser()
+                        html_flow = html_parser.parse_file(found_html, rel_route=target_rel)
+                        lines = [f"# {doc_title}\n"]
+                        in_rst = False
+
+                        for el in html_flow.elements:
+                            act_elem_type = "PARAGRAPH" if el.role == HtmlFlowRole.PROSE else el.role.value
+                            act_strat = "AUTOSUMMARY" if el.role == HtmlFlowRole.AUTOSUMMARY else ("AUTODOC" if el.role == HtmlFlowRole.API_MODULE else "PRESERVE")
+                            flow_actions.append(DocumentFlowAction(
+                                action_id=f"flow_doc_{target_rel.replace('/', '_').replace('.', '_')}_{order_idx}",
+                                order_index=order_idx,
+                                source_construct_id=f"doc:{target_rel}:elem:{order_idx:04d}",
+                                element_type=act_elem_type,
+                                strategy=act_strat,
+                                content_summary=(el.text or (", ".join(el.symbols) if el.symbols else "") or el.qname or "")[:50],
+                                target_directive=el.directive,
+                                rationale=f"Ordered HTML element {el.role.value} mapped to Sphinx documentation flow."
+                            ))
+                            order_idx += 1
+
+                            if el.role == HtmlFlowRole.HEADING:
+                                continue
+                            elif el.role == HtmlFlowRole.PROSE:
+                                if in_rst:
+                                    lines.append("```\n")
+                                    in_rst = False
+                                lines.append(f"{el.text}\n")
+                            elif el.role == HtmlFlowRole.AUTOSUMMARY:
+                                if not in_rst:
+                                    lines.append("```{eval-rst}\n.. currentmodule:: " + module_qualname + "\n")
+                                    in_rst = True
+                                rubric = None
+                                if el.headers:
+                                    h = el.headers[0].upper()
+                                    if "CLASS" in h:
+                                        rubric = "Classes"
+                                    elif "FUNC" in h:
+                                        rubric = "Functions"
+                                    elif "ATTR" in h:
+                                        rubric = "Attributes"
+                                    elif "EXCEPT" in h:
+                                        rubric = "Exceptions"
+                                if rubric:
+                                    lines.append(f"\n.. rubric:: {rubric}\n")
+                                nosig = "\n   :nosignatures:" if el.options.get("nosignatures", True) else ""
+                                lines.append(f"\n.. autosummary::{nosig}\n\n")
+                                for s in el.symbols:
+                                    lines.append(f"   {s}\n")
+                            elif el.role == HtmlFlowRole.API_MODULE:
+                                if not in_rst:
+                                    lines.append("```{eval-rst}\n.. currentmodule:: " + module_qualname + "\n")
+                                    in_rst = True
+                                lines.append(f"\n.. automodule:: {module_qualname}\n   :members:\n   :undoc-members:\n   :show-inheritance:\n")
+                        if in_rst:
+                            lines.append("```\n")
+                        doc_content = "\n".join(lines).rstrip() + "\n"
                     else:
-                        doc_content = f"# {doc_title}\n\n"
-                        if module_docstring:
-                            doc_content += f"{module_docstring.strip()}\n\n"
-                        doc_content += f"```{{eval-rst}}\n.. currentmodule:: {module_qualname}\n"
-                        for heading, key in (("Classes", "classes"), ("Functions", "functions"), ("Attributes", "attributes")):
-                            if members[key]:
-                                doc_content += f"\n.. rubric:: {heading}\n\n.. autosummary::\n   :nosignatures:\n\n"
-                                doc_content += "".join(f"   {name}\n" for name in members[key])
-                        doc_content += f"\n.. automodule:: {module_qualname}\n   :members:\n   :undoc-members:\n   :show-inheritance:\n"
-                    doc_content += "```\n"
+                        # Deterministic fallback to Python AST analysis
+                        flow_actions.append(DocumentFlowAction(
+                            action_id=f"flow_doc_{target_rel.replace('/', '_').replace('.', '_')}_{order_idx}",
+                            order_index=order_idx,
+                            source_construct_id=f"doc:{target_rel}:elem:{order_idx:04d}",
+                            element_type="HEADING",
+                            strategy="PRESERVE",
+                            content_summary=doc_title,
+                            rationale="API reference document heading."
+                        ))
+                        order_idx += 1
+
+                        if is_pkg_index:
+                            doc_content = f"# {doc_title}\n\n"
+                            if module_docstring:
+                                for p_txt in module_docstring.strip().split("\n\n"):
+                                    p_clean = p_txt.strip()
+                                    if p_clean:
+                                        flow_actions.append(DocumentFlowAction(
+                                            action_id=f"flow_doc_{target_rel.replace('/', '_').replace('.', '_')}_{order_idx}",
+                                            order_index=order_idx,
+                                            source_construct_id=f"doc:{target_rel}:elem:{order_idx:04d}",
+                                            element_type="PARAGRAPH",
+                                            strategy="PRESERVE",
+                                            content_summary=p_clean[:50],
+                                            rationale="Module docstring overview prose."
+                                        ))
+                                        order_idx += 1
+                                doc_content += f"{module_docstring.strip()}\n\n"
+                            doc_content += f"```{{eval-rst}}\n.. currentmodule:: {module_qualname}\n\n.. autosummary::\n   :nosignatures:\n\n"
+                            flow_actions.append(DocumentFlowAction(
+                                action_id=f"flow_doc_{target_rel.replace('/', '_').replace('.', '_')}_{order_idx}",
+                                order_index=order_idx,
+                                source_construct_id=f"doc:{target_rel}:elem:{order_idx:04d}",
+                                element_type="AUTOSUMMARY",
+                                strategy="AUTOSUMMARY",
+                                content_summary="Package index summary table",
+                                target_directive="autosummary",
+                                rationale="Summary table for package index."
+                            ))
+                            order_idx += 1
+                        else:
+                            doc_content = f"# {doc_title}\n\n"
+                            if module_docstring:
+                                for p_txt in module_docstring.strip().split("\n\n"):
+                                    p_clean = p_txt.strip()
+                                    if p_clean:
+                                        flow_actions.append(DocumentFlowAction(
+                                            action_id=f"flow_doc_{target_rel.replace('/', '_').replace('.', '_')}_{order_idx}",
+                                            order_index=order_idx,
+                                            source_construct_id=f"doc:{target_rel}:elem:{order_idx:04d}",
+                                            element_type="PARAGRAPH",
+                                            strategy="PRESERVE",
+                                            content_summary=p_clean[:50],
+                                            rationale="Module docstring overview prose."
+                                        ))
+                                        order_idx += 1
+                                doc_content += f"{module_docstring.strip()}\n\n"
+                            doc_content += f"```{{eval-rst}}\n.. currentmodule:: {module_qualname}\n"
+                            for heading, key in (("Classes", "classes"), ("Functions", "functions"), ("Attributes", "attributes")):
+                                if members[key]:
+                                    doc_content += f"\n.. rubric:: {heading}\n\n.. autosummary::\n   :nosignatures:\n\n"
+                                    doc_content += "".join(f"   {name}\n" for name in members[key])
+                                    flow_actions.append(DocumentFlowAction(
+                                        action_id=f"flow_doc_{target_rel.replace('/', '_').replace('.', '_')}_{order_idx}",
+                                        order_index=order_idx,
+                                        source_construct_id=f"doc:{target_rel}:elem:{order_idx:04d}",
+                                        element_type="AUTOSUMMARY",
+                                        strategy="AUTOSUMMARY",
+                                        content_summary=f"Summary table for {heading}",
+                                        target_directive="autosummary",
+                                        rationale=f"Summary table for {heading}."
+                                    ))
+                                    order_idx += 1
+                            doc_content += f"\n.. automodule:: {module_qualname}\n   :members:\n   :undoc-members:\n   :show-inheritance:\n"
+                            flow_actions.append(DocumentFlowAction(
+                                action_id=f"flow_doc_{target_rel.replace('/', '_').replace('.', '_')}_{order_idx}",
+                                order_index=order_idx,
+                                source_construct_id=f"doc:{target_rel}:elem:{order_idx:04d}",
+                                element_type="API_REQUEST",
+                                strategy="AUTODOC",
+                                content_summary=f"automodule::{module_qualname}",
+                                target_directive=f".. automodule:: {module_qualname}",
+                                rationale="Full module autodoc expansion."
+                            ))
+                            order_idx += 1
+                        doc_content += "```\n"
 
                     generated_doc_proposals.append(GeneratedDocumentProposal(
                         target_path=target_rel,
@@ -552,7 +698,8 @@ class MigrationPlanner:
                         generator_plugin="gen-files",
                         generator_script=scripts[0] if scripts else None,
                         provenance=RequirementProvenance.GENERATED_PIPELINE,
-                        rationale=f"Synthesized API reference documentation for {module_qualname} matching MkDocs gen-files/mkdocstrings pipeline."
+                        rationale=f"Synthesized API reference documentation for {module_qualname} matching MkDocs gen-files/mkdocstrings pipeline.",
+                        flow_actions=flow_actions
                     ))
 
             # If package index exists, append toctree of child modules so Sphinx tree is complete
@@ -776,8 +923,9 @@ class MigrationPlanner:
                 artifact_kind="generated_stub",
                 provenance=gen_prop.provenance,
                 rationale=gen_prop.rationale,
+                flow_actions=gen_prop.flow_actions,
                 artifact_provenance=ArtifactProvenance(
-                    source_construct_ids=[],
+                    source_construct_ids=[act.source_construct_id for act in gen_prop.flow_actions if act.source_construct_id],
                     source_files=[],
                     generated_from_pipeline=gen_prop.generator_plugin,
                     required_extensions=["sphinx.ext.autodoc", "sphinx.ext.autosummary"],
