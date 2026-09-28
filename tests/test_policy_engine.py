@@ -94,9 +94,9 @@ def test_theme_policy_boundary_separation(tmp_path):
 
     planner = MigrationPlanner(repo)
     plan = planner.create_plan()
-    assert plan.proposed_sphinx_config.theme.target_theme == "furo"
-    assert "furo>=2024.1.0" in plan.get_required_packages()
-    assert "sphinx_immaterial" not in plan.get_required_extensions()
+    assert plan.proposed_sphinx_config.theme.target_theme == "sphinx_immaterial"
+    assert "sphinx-immaterial>=0.11.0" in plan.get_required_packages()
+    assert "sphinx_immaterial" in plan.get_required_extensions()
 
 def test_myst_syntax_extensions_derived_from_features(tmp_path):
     repo = tmp_path / "myst_test"

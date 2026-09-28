@@ -191,10 +191,18 @@ class TransformationValidator:
             docs_out = tmppath / "build"
             docs_src.mkdir(parents=True)
 
+            # Determine the exact common docs_dir prefix from the generated conf.py path
+            conf_prefix_parts = ()
+            if report.generated_sphinx_files:
+                conf_key = list(report.generated_sphinx_files.keys())[0]
+                conf_key_path = Path(conf_key)
+                if len(conf_key_path.parts) > 1:
+                    conf_prefix_parts = conf_key_path.parts[:-1]
+
             # Copy docs static assets, images, examples from docs directory
             proj_root = Path(report.project_root)
-            # Find docs directory
-            docs_folder = proj_root / "docs" if (proj_root / "docs").is_dir() else proj_root
+            docs_dir_name = conf_prefix_parts[0] if conf_prefix_parts else "docs"
+            docs_folder = proj_root / docs_dir_name if (proj_root / docs_dir_name).is_dir() else (proj_root / "docs" if (proj_root / "docs").is_dir() else proj_root)
             if docs_folder.exists() and docs_folder.is_dir():
                 for item in docs_folder.rglob("*"):
                     if item.is_file() and not item.name.endswith(".md") and not item.name.endswith(".pyc"):
@@ -207,14 +215,6 @@ class TransformationValidator:
                             shutil.copy2(item, dest_asset)
                         except Exception:
                             pass
-
-            # Determine the exact common docs_dir prefix from the generated conf.py path
-            conf_prefix_parts = ()
-            if report.generated_sphinx_files:
-                conf_key = list(report.generated_sphinx_files.keys())[0]
-                conf_key_path = Path(conf_key)
-                if len(conf_key_path.parts) > 1:
-                    conf_prefix_parts = conf_key_path.parts[:-1]
 
             # Write transformed markdown documents directly into docs_src relative to the docs_dir
             for doc in report.transformed_documents:

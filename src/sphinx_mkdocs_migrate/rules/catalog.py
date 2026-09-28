@@ -81,11 +81,11 @@ DEFAULT_RULES: List[MigrationRule] = [
         description="Transforms PyMdown '???+ note \"Title\"' collapsible details into sphinx-design '{dropdown}' directives."
     ),
 
-    # 4. mkdocstrings API Directives
+    # 4. mkdocstrings / mkautodoc API Directives
     MigrationRule(
         rule_id="rule.api.autodoc",
         source_kind=NodeKind.API_DIRECTIVE,
-        rule_kind=RuleKind.RULE_DEPENDENT,
+        rule_kind=RuleKind.DETERMINISTIC,
         classification=Classification.MANUAL,
         target=MigrationTarget(
             framework="sphinx.ext.autodoc",
@@ -94,10 +94,10 @@ DEFAULT_RULES: List[MigrationRule] = [
             required_py_packages=["Sphinx>=7.0.0"]
         ),
         preserves=["symbol_path"],
-        changes=["directive_syntax", "docstring_format_handling"],
+        changes=["directive_syntax"],
         conditions={"symbol_format": "dotted_path"},
-        manual_if=["unresolved_symbol_type", "custom_mkdocstrings_handler", "variadic_args_kwargs_docstrings"],
-        description="Maps '::: symbol.path' to appropriate Sphinx autodoc directives with docstring convention review."
+        manual_if=["symbol_kind_unknown", "complex_filter_options"],
+        description="Maps '::: symbol.path' to appropriate Sphinx autodoc directives with options."
     ),
 
     # 5. Snippet Includes

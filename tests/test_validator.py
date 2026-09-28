@@ -160,7 +160,7 @@ def test_semantic_navigation_toctree_ordering(fixture_dir):
 
     # In sample_mkdocs nav: Index -> api.md
     assert "```{toctree}" in index_res.transformed_content
-    assert ":caption: Contents:" in index_res.transformed_content
+    assert ":hidden:" in index_res.transformed_content
     assert "api" in index_res.transformed_content
 
 def test_true_pipeline_idempotence(fixture_dir):

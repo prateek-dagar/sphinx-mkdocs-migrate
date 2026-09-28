@@ -222,7 +222,8 @@ class MySTDocumentTransformer:
         # 4. Snippet Includes (--8<-- "path")
         elif node.kind == NodeKind.SNIPPET_INCLUDE:
             filepath = node.metadata.get("filepath", "")
-            return f"```{{literalinclude}} {filepath}\n```"
+            directive = "include" if (filepath.endswith(".md") or filepath.endswith(".txt")) else "literalinclude"
+            return f"```{{{directive}}} {filepath}\n```"
 
         # 5. Mermaid Diagrams (```mermaid)
         elif node.kind == NodeKind.MERMAID_DIAGRAM:
@@ -232,6 +233,44 @@ class MySTDocumentTransformer:
                 if len(parts) >= 3:
                     diagram_code = parts[2].strip()
             return f"```{{mermaid}}\n{diagram_code}\n```"
+
+        # 6. API Directives (::: symbol)
+        elif node.kind == NodeKind.API_DIRECTIVE:
+            symbol = node.metadata.get("symbol", "")
+            raw_text = node.raw_text
+            
+            explicit_members = []
+            is_all_members = False
+            for line in raw_text.splitlines():
+                s = line.strip()
+                if s.startswith(":members:"):
+                    m_val = s[len(":members:"):].strip()
+                    if m_val:
+                        explicit_members = [item for item in m_val.split() if item]
+                    else:
+                        is_all_members = True
+
+            last_part = symbol.split(".")[-1] if symbol else ""
+            if "Error" in last_part or "Exception" in last_part:
+                directive = "autoexception"
+            elif last_part and last_part[0].isupper():
+                directive = "autoclass"
+            elif "_" in last_part or (last_part and last_part.islower()):
+                directive = "autofunction"
+            else:
+                directive = "autoclass"
+
+            lines = [f".. {directive}:: {symbol}"]
+            if explicit_members:
+                lines.append(f"    :members: {', '.join(explicit_members)}")
+            elif is_all_members:
+                lines.append("    :members:")
+            
+            if directive in ("autoclass", "autoexception"):
+                lines.append("    :show-inheritance:")
+
+            rst_block = "\n".join(lines)
+            return f"```{{eval-rst}}\n{rst_block}\n```"
 
         return node.raw_text
 

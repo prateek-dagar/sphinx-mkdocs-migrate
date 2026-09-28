@@ -30,7 +30,7 @@ def analyze(project_path: Path, json_out: bool):
     report = analyzer.analyze()
 
     if json_out:
-        console.print(json.dumps(report.model_dump(), indent=2, default=str))
+        sys.stdout.write(json.dumps(report.model_dump(), indent=2, default=str) + "\n")
         return
 
     console.print(f"[bold blue]Inspecting MkDocs project:[/bold blue] {project_path.resolve()}")
@@ -48,6 +48,25 @@ def analyze(project_path: Path, json_out: bool):
     console.print(table)
     console.print()
 
+    if report.migration_requirements:
+        req_table = Table(title="Derived Migration Requirements", show_header=True, header_style="bold cyan")
+        req_table.add_column("Category", width=18)
+        req_table.add_column("Disposition", width=22)
+        req_table.add_column("Source Construct", width=26)
+        req_table.add_column("Required Outcome")
+
+        for req in report.migration_requirements:
+            disp_style = "green" if req.disposition.value in ("PRESERVE", "GENERATE") else ("yellow" if req.disposition.value == "TRANSFORM" else "blue")
+            req_table.add_row(
+                req.category.value,
+                f"[{disp_style}]{req.disposition.value}[/{disp_style}]",
+                req.source_construct,
+                req.required_outcome
+            )
+
+        console.print(req_table)
+        console.print()
+
 @main.command()
 @click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path), default=".")
 @click.option("--output-json", "output_json_path", type=click.Path(dir_okay=False, writable=True, path_type=Path), default=None, help="Write canonical machine-readable migration plan JSON to file.")
@@ -62,7 +81,7 @@ def plan(project_path: Path, output_json_path: Optional[Path], json_stdout: bool
         console.print(f"[bold green]✔ Plan exported to:[/bold green] {output_json_path.resolve()}")
 
     if json_stdout:
-        console.print(json.dumps(plan.canonical_dict(), indent=2, default=str))
+        sys.stdout.write(json.dumps(plan.canonical_dict(), indent=2, default=str) + "\n")
         return
 
     console.print(f"[bold blue]Generating Migration Plan for:[/bold blue] {project_path.resolve()}")

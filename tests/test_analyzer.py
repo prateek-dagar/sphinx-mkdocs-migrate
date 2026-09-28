@@ -99,5 +99,156 @@ fake nested code
         self.assertIsNotNone(report.dependency_analysis)
         self.assertGreater(len(report.construct_findings), 0)
 
+        # Verify effective configuration resolution
+        self.assertIn("theme.name", report.effective_config.properties)
+        self.assertEqual(report.effective_config.get("theme.name"), "material")
+
+        # Verify document flows extracted in authored sequence
+        self.assertGreater(len(report.document_flows), 0)
+
+        # Verify migration requirements derived
+        self.assertGreater(len(report.migration_requirements), 0)
+
+        # Verify canonical hashing
+        c_hash = report.canonical_hash()
+        self.assertEqual(len(c_hash), 64)
+
+    def test_canonical_identity_source_invariance_contract(self):
+        """Verify contract:
+
+        source change -> canonical identity changes
+        environment-only change -> canonical identity unchanged & environment fingerprint changes
+        """
+        from sphinx_mkdocs_migrate.analyzer.models import (
+            ProjectAnalysisReport,
+            VersionEnvironment,
+            PackageVersionInfo
+        )
+
+        # Report A: mkdocs-material >=8.5, resolved 9.7.7
+        env_a = VersionEnvironment(
+            python_constraint=">=3.10",
+            python_resolved_version="3.12.7",
+            python_resolution_status="INSTALLED_RESOLVED",
+            packages={
+                "mkdocs-material": PackageVersionInfo(
+                    package_name="mkdocs-material",
+                    declared_spec=">=8.5",
+                    resolved_version="9.7.7",
+                    resolution_status="INSTALLED_RESOLVED",
+                    resolution_source="CURRENT_PYTHON_ENVIRONMENT",
+                    satisfies_declared_constraint=True
+                )
+            }
+        )
+        report_a = ProjectAnalysisReport(
+            project_root="/dummy/repo",
+            version_env=env_a
+        )
+
+        # Report B: mkdocs-material >=8.5, resolved 9.8.0 under Python 3.11
+        env_b = VersionEnvironment(
+            python_constraint=">=3.10",
+            python_resolved_version="3.11.9",
+            python_resolution_status="INSTALLED_RESOLVED",
+            packages={
+                "mkdocs-material": PackageVersionInfo(
+                    package_name="mkdocs-material",
+                    declared_spec=">=8.5",
+                    resolved_version="9.8.0",
+                    resolution_status="INSTALLED_RESOLVED",
+                    resolution_source="CURRENT_PYTHON_ENVIRONMENT",
+                    satisfies_declared_constraint=True
+                )
+            }
+        )
+        report_b = ProjectAnalysisReport(
+            project_root="/dummy/repo",
+            version_env=env_b
+        )
+
+        # Invariant 1: Source identity MUST match despite environment difference
+        self.assertEqual(report_a.canonical_hash(), report_b.canonical_hash())
+
+        # Invariant 2: Observed environment fingerprint MUST differ
+        self.assertNotEqual(report_a.environment_fingerprint(), report_b.environment_fingerprint())
+
+        # Report C: Alter the source declaration itself: >=8.5 -> >=9.0
+        env_c = VersionEnvironment(
+            python_constraint=">=3.10",
+            python_resolved_version="3.12.7",
+            python_resolution_status="INSTALLED_RESOLVED",
+            packages={
+                "mkdocs-material": PackageVersionInfo(
+                    package_name="mkdocs-material",
+                    declared_spec=">=9.0",
+                    resolved_version="9.7.7",
+                    resolution_status="INSTALLED_RESOLVED",
+                    resolution_source="CURRENT_PYTHON_ENVIRONMENT",
+                    satisfies_declared_constraint=True
+                )
+            }
+        )
+        report_c = ProjectAnalysisReport(
+            project_root="/dummy/repo",
+            version_env=env_c
+        )
+
+        # Invariant 3: Source declaration change MUST alter canonical hash
+        self.assertNotEqual(report_a.canonical_hash(), report_c.canonical_hash())
+
+    def test_unresolved_package_canonical_invariance(self):
+        """Verify that transitioning an installed package to UNRESOLVED status
+
+        does not alter the source repository canonical hash.
+        """
+        from sphinx_mkdocs_migrate.analyzer.models import (
+            ProjectAnalysisReport,
+            VersionEnvironment,
+            PackageVersionInfo
+        )
+
+        # Report Installed
+        env_installed = VersionEnvironment(
+            packages={
+                "mkdocstrings": PackageVersionInfo(
+                    package_name="mkdocstrings",
+                    declared_spec=">=0.24",
+                    resolved_version="0.25.1",
+                    resolution_status="INSTALLED_RESOLVED",
+                    resolution_source="CURRENT_PYTHON_ENVIRONMENT",
+                    satisfies_declared_constraint=True
+                )
+            }
+        )
+        report_installed = ProjectAnalysisReport(
+            project_root="/dummy/repo",
+            version_env=env_installed
+        )
+
+        # Report Unresolved
+        env_unresolved = VersionEnvironment(
+            packages={
+                "mkdocstrings": PackageVersionInfo(
+                    package_name="mkdocstrings",
+                    declared_spec=">=0.24",
+                    resolved_version=None,
+                    resolution_status="UNRESOLVED",
+                    resolution_source=None,
+                    satisfies_declared_constraint=None
+                )
+            }
+        )
+        report_unresolved = ProjectAnalysisReport(
+            project_root="/dummy/repo",
+            version_env=env_unresolved
+        )
+
+        # Source canonical hash remains strictly invariant
+        self.assertEqual(report_installed.canonical_hash(), report_unresolved.canonical_hash())
+        self.assertNotEqual(report_installed.environment_fingerprint(), report_unresolved.environment_fingerprint())
+
+
 if __name__ == "__main__":
     unittest.main()
+

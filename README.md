@@ -9,8 +9,8 @@
 
 ## Key Principles & Design Boundaries
 
-### What `sphinx-Migrate` Does
-* **Evidence-Driven Subsystem Analysis**: Inspects `mkdocs.yml\, directory structures, theme features, Markdown extensions, and plugins.
+### What `sphinx-migrate` Does
+* **Evidence-Driven Subsystem Analysis**: Inspects `mkdocs.yml`, directory structures, theme features, Markdown extensions, and plugins.
 * **Deterministic, Read-Only Planning**: Generates a canonical `MigrationPlan` with stable hashes and provenance tracking for every extension and package.
 * **Byte-Preserving Transformation**: Transforms only specific non-standard syntax spans (e.g. tabs, dropdowns, includes) into native MyST/Sphinx directives while guaranteeing byte-for-byte identity on untouched Markdown.
 * **AST-Guided API Migration**: Resolves Python symbols statically (`ast.parse`) without executing untrusted repository code. Conservative manual boundary for re-exports and ambiguities.
@@ -19,14 +19,14 @@
 ### What `sphinx-migrate` Does NOT Do
 * **No Speculative Heuristics**: If a syntax construct or custom plugin cannot be deterministically mapped, it is routed to `MANUAL` or `UNSUPPORTED` rather than guessed.
 * **No Source Code Mutation**: Does not rewrite Python `.py` source code or docstrings.
-+ **No Forced Theme Bundles**: Theme selection is an explicit configurable policy (defaulting to modern Sphinx 8/9 compatible themes such as Furo), not an automatic dependency bundle.
+* **No Forced Theme Bundles**: Theme selection is an explicit configurable policy (defaulting to modern Sphinx 8/9 compatible themes such as Furo), not an automatic dependency bundle.
 * **Build Success != Runtime Equivalence**: A successful Sphinx build proves structural and buildability correctness; it does not guarantee visual or JavaScript runtime identity with MkDocs Material.
 
 ---
 
 ## Installation
 
-@`bash
+```bash
 pip install sphinx-mkdocs-migrate
 ```
 
@@ -36,7 +36,7 @@ pip install sphinx-mkdocs-migrate
 
 The migration lifecycle consists of 4 distinct commands:
 
-@``text
+```text
 sphinx-migrate analyze   # 1. Factual project & subsystem inspection
        ↑
 sphinx-migrate plan      # 2. Deterministic, read-only MigrationPlan generation

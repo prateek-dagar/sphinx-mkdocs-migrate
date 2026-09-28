@@ -10,6 +10,10 @@ from sphinx_mkdocs_migrate.analyzer.models import Classification
 from sphinx_mkdocs_migrate.transformer.myst_transformer import MySTDocumentTransformer
 from sphinx_mkdocs_migrate.transformer.models import TransformationStatus
 from sphinx_mkdocs_migrate.rules.engine import MigrationRuleEngine
+from sphinx_mkdocs_migrate.planner.models import (
+    MigrationPlan, MigrationPlanMetadata, GeneratedDocumentProposal,
+)
+from sphinx_mkdocs_migrate.analyzer.models import ConfigAnalysis
 
 @pytest.fixture
 def fixture_dir():
@@ -38,6 +42,33 @@ def test_source_preservation_invariant_on_untouched_markdown():
     assert transformed == doc_text
     assert applied == 0
     assert stale_cnt == 0
+
+def test_resolved_mkdocs_autorefs_links_become_relative_myst_links(tmp_path):
+    """Autorefs shorthand must not remain literal text in a MyST document."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "index.md").write_text(
+        "# Home\n\nUse [orjson][pythonjsonlogger.orjson].\n", encoding="utf-8"
+    )
+    generated = GeneratedDocumentProposal(
+        target_path="docs/reference/pythonjsonlogger/orjson.md",
+        title="pythonjsonlogger.orjson",
+        content="# pythonjsonlogger.orjson\n\n```{eval-rst}\n.. currentmodule:: pythonjsonlogger.orjson\n```\n",
+        generator_plugin="gen-files",
+        rationale="test fixture",
+    )
+    plan = MigrationPlan(
+        project_root=str(tmp_path),
+        source_mkdocs_config=ConfigAnalysis(plugins=["autorefs"]),
+        generated_documents=[generated],
+        metadata=MigrationPlanMetadata(generated_at="2026-09-29T00:00:00Z"),
+    )
+
+    report = TransformationEngine(plan).execute(write_to_disk=False)
+    index = next(doc for doc in report.transformed_documents if doc.target_file == "docs/index.md")
+
+    assert "[orjson](reference/pythonjsonlogger/orjson.md)" in index.transformed_content
+    assert "[orjson][pythonjsonlogger.orjson]" not in index.transformed_content
 
 def test_safe_nested_fence_allocation():
     """Ensure nested tab-sets, tab-items, dropdowns, and code blocks use strictly valid backtick lengths."""
