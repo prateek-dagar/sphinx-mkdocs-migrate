@@ -1,15 +1,19 @@
 """Data models for post-transformation validation and Sphinx build verification."""
+
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
+
 
 class ValidationSeverity(str, Enum):
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
 
+
 class ValidationIssue(BaseModel):
     """Validation finding reported during structural parsing or Sphinx build execution."""
+
     file_path: str
     line_number: Optional[int] = None
     severity: ValidationSeverity
@@ -17,8 +21,10 @@ class ValidationIssue(BaseModel):
     message: str
     context_snippet: Optional[str] = None
 
+
 class ValidationReport(BaseModel):
     """Overall validation report checking CommonMark structural validity, Sphinx config, and build execution."""
+
     passed: bool
     total_issues: int = 0
     errors_count: int = 0

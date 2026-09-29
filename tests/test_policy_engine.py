@@ -1,14 +1,8 @@
 # Hardened Policy Engine Tests
-from pathlib import Path
-import pytest
-from sphinx_mkdocs_migrate.planner.policy import (
-    PolicyEngine,
-    FeaturePolicyCatalog,
-    FeaturePolicyRule,
-    SourceFeatureCategory
-)
+from sphinx_mkdocs_migrate.planner.policy import FeaturePolicyCatalog
 from sphinx_mkdocs_migrate.planner.planner import MigrationPlanner
 from sphinx_mkdocs_migrate.planner.models import RequirementProvenance, Classification
+
 
 def test_feature_policy_catalog_lookup_and_lineage():
     catalog = FeaturePolicyCatalog()
@@ -54,13 +48,25 @@ def test_feature_policy_catalog_lookup_and_lineage():
     # 7. Non-existent feature
     assert catalog.lookup("non_existent_feature_xyz") is None
 
+
 def test_evidence_driven_dependency_provenance(tmp_path):
     repo_a = tmp_path / "repo_a"
     repo_a.mkdir()
     docs_a = repo_a / "docs"
     docs_a.mkdir()
     (docs_a / "index.md").write_text("# Hello Doc" + chr(10), encoding="utf-8")
-    cfg_a = "site_name: Project A" + chr(10) + "theme:" + chr(10) + "  name: material" + chr(10) + "  features:" + chr(10) + "    - navigation.instant" + chr(10)
+    cfg_a = (
+        "site_name: Project A"
+        + chr(10)
+        + "theme:"
+        + chr(10)
+        + "  name: material"
+        + chr(10)
+        + "  features:"
+        + chr(10)
+        + "    - navigation.instant"
+        + chr(10)
+    )
     (repo_a / "mkdocs.yml").write_text(cfg_a, encoding="utf-8")
 
     planner_a = MigrationPlanner(repo_a)
@@ -73,7 +79,18 @@ def test_evidence_driven_dependency_provenance(tmp_path):
     docs_b = repo_b / "docs"
     docs_b.mkdir()
     (docs_b / "index.md").write_text("# Hello Doc" + chr(10), encoding="utf-8")
-    cfg_b = "site_name: Project B" + chr(10) + "theme:" + chr(10) + "  name: material" + chr(10) + "  features:" + chr(10) + "    - content.code.copy" + chr(10)
+    cfg_b = (
+        "site_name: Project B"
+        + chr(10)
+        + "theme:"
+        + chr(10)
+        + "  name: material"
+        + chr(10)
+        + "  features:"
+        + chr(10)
+        + "    - content.code.copy"
+        + chr(10)
+    )
     (repo_b / "mkdocs.yml").write_text(cfg_b, encoding="utf-8")
 
     planner_b = MigrationPlanner(repo_b)
@@ -83,13 +100,21 @@ def test_evidence_driven_dependency_provenance(tmp_path):
     assert copy_req.provenance == RequirementProvenance.FEATURE_POLICY
     assert "theme_feature:content.code.copy" in copy_req.sources
 
+
 def test_theme_policy_boundary_separation(tmp_path):
     repo = tmp_path / "theme_test"
     repo.mkdir()
     docs = repo / "docs"
     docs.mkdir()
     (docs / "index.md").write_text("# Hello Doc" + chr(10), encoding="utf-8")
-    cfg = "site_name: Material Theme Test" + chr(10) + "theme:" + chr(10) + "  name: material" + chr(10)
+    cfg = (
+        "site_name: Material Theme Test"
+        + chr(10)
+        + "theme:"
+        + chr(10)
+        + "  name: material"
+        + chr(10)
+    )
     (repo / "mkdocs.yml").write_text(cfg, encoding="utf-8")
 
     planner = MigrationPlanner(repo)
@@ -98,13 +123,25 @@ def test_theme_policy_boundary_separation(tmp_path):
     assert "sphinx-immaterial>=0.11.0" in plan.get_required_packages()
     assert "sphinx_immaterial" in plan.get_required_extensions()
 
+
 def test_myst_syntax_extensions_derived_from_features(tmp_path):
     repo = tmp_path / "myst_test"
     repo.mkdir()
     docs = repo / "docs"
     docs.mkdir()
     (docs / "index.md").write_text("# Hello Doc" + chr(10), encoding="utf-8")
-    cfg = "site_name: MyST Test" + chr(10) + "markdown_extensions:" + chr(10) + "  - pymdownx.arithmatex" + chr(10) + "  - def_list" + chr(10) + "  - attr_list" + chr(10)
+    cfg = (
+        "site_name: MyST Test"
+        + chr(10)
+        + "markdown_extensions:"
+        + chr(10)
+        + "  - pymdownx.arithmatex"
+        + chr(10)
+        + "  - def_list"
+        + chr(10)
+        + "  - attr_list"
+        + chr(10)
+    )
     (repo / "mkdocs.yml").write_text(cfg, encoding="utf-8")
 
     planner = MigrationPlanner(repo)
@@ -115,13 +152,25 @@ def test_myst_syntax_extensions_derived_from_features(tmp_path):
     assert "attrs_block" in myst_exts
     assert "colon_fence" in myst_exts
 
+
 def test_conf_settings_and_builtin_extension_isolation(tmp_path):
     repo = tmp_path / "gh_links_test"
     repo.mkdir()
     docs = repo / "docs"
     docs.mkdir()
     (docs / "index.md").write_text("# Hello Doc" + chr(10), encoding="utf-8")
-    cfg = "site_name: GH Links Test" + chr(10) + "markdown_extensions:" + chr(10) + "  - mdx_gh_links" + chr(10) + "plugins:" + chr(10) + "  - mkdocstrings" + chr(10)
+    cfg = (
+        "site_name: GH Links Test"
+        + chr(10)
+        + "markdown_extensions:"
+        + chr(10)
+        + "  - mdx_gh_links"
+        + chr(10)
+        + "plugins:"
+        + chr(10)
+        + "  - mkdocstrings"
+        + chr(10)
+    )
     (repo / "mkdocs.yml").write_text(cfg, encoding="utf-8")
 
     planner = MigrationPlanner(repo)

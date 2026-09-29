@@ -3,7 +3,8 @@
 Dynamically constructs a DocumentationBuildGraph from detected or parameterized locales
 and configuration, avoiding hardcoded project-specific lists or names.
 """
-from typing import Dict, List, Optional, Set
+
+from typing import Dict, List, Optional
 from sphinx_mkdocs_migrate.parsing.doc_ir import (
     BuildStage,
     BuildStageType,
@@ -18,18 +19,19 @@ from sphinx_mkdocs_migrate.parsing.doc_ir import (
     DependencyJustificationKind,
 )
 
+
 def build_multilingual_pipeline_graph(
     locales: Optional[List[str]] = None,
     excluded_paths: Optional[List[str]] = None,
     canonical_locale: str = "en",
 ) -> DocumentationBuildGraph:
     """Dynamically builds a generic multi-stage, multi-locale documentation build DAG.
-    
+
     Args:
         locales: List of discovered or configured locale codes (default: ['en', 'de']).
         excluded_paths: Paths/routes excluded from translation overlays.
         canonical_locale: The base canonical language code (default: 'en').
-        
+
     Topology:
         - Out-of-band preparation workflows (syntax variants, config sync, anchors)
         - Lifted data-driven banner/sponsor partial synthesis
@@ -56,9 +58,12 @@ def build_multilingual_pipeline_graph(
         outputs=["docs_src/**/*_py39.py", "docs_src/**/*_py310.py"],
         depends_on=[],
         strategy="RUFF_TARGET_SYNTAX_TRANSFORM",
-        consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.TEST_ARTIFACT},
+        consumer_kinds={
+            ArtifactConsumerKind.SITE_ARTIFACT,
+            ArtifactConsumerKind.TEST_ARTIFACT,
+        },
         source_provenance_symbol="scripts/docs.py:generate_docs_src_versions_for_file",
-        rationale="Generate Python 3.9 and 3.10 syntax variants via Ruff for tutorial tab includes."
+        rationale="Generate Python 3.9 and 3.10 syntax variants via Ruff for tutorial tab includes.",
     )
 
     stages["prep_update_languages"] = BuildStage(
@@ -72,7 +77,7 @@ def build_multilingual_pipeline_graph(
         strategy="SYNC_LANGUAGE_MATRIX",
         consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
         source_provenance_symbol="scripts/docs.py:update_languages",
-        rationale="Synchronize discovered locale directory codes into the English mkdocs.yml extra.alternate matrix."
+        rationale="Synchronize discovered locale directory codes into the English mkdocs.yml extra.alternate matrix.",
     )
 
     stages["prep_add_permalinks"] = BuildStage(
@@ -86,7 +91,7 @@ def build_multilingual_pipeline_graph(
         strategy="HEADER_PERMALINK_NORMALIZATION",
         consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
         source_provenance_symbol="scripts/docs.py:add_permalinks",
-        rationale="Ensure markdown headings contain normalized HTML anchors."
+        rationale="Ensure markdown headings contain normalized HTML anchors.",
     )
 
     stages["prep_generate_readme"] = BuildStage(
@@ -100,7 +105,7 @@ def build_multilingual_pipeline_graph(
         strategy="EXTRACT_INDEX_TO_README",
         consumer_kinds={ArtifactConsumerKind.REPOSITORY_ARTIFACT},
         source_provenance_symbol="scripts/docs.py:generate_readme",
-        rationale="Extract canonical introduction markdown to repository root README.md."
+        rationale="Extract canonical introduction markdown to repository root README.md.",
     )
 
     # 2. Lifted Data-Driven Partial Synthesis (Normalized shared prerequisite)
@@ -115,7 +120,7 @@ def build_multilingual_pipeline_graph(
         strategy="JINJA_TEMPLATE_RENDER",
         consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
         source_provenance_symbol="scripts/docs.py:stage_zensical_docs->render_banner_sponsors",
-        rationale="Lifted from stage_zensical_docs into independent stage to produce shared banner-sponsors partial."
+        rationale="Lifted from stage_zensical_docs into independent stage to produce shared banner-sponsors partial.",
     )
 
     artifacts["art_source_variants_py39"] = BuildArtifact(
@@ -127,10 +132,13 @@ def build_multilingual_pipeline_graph(
         producer_stage="prep_generate_source_variants",
         consumer_stages=[],
         external_consumers=["documentation_source_tree", "test_suite"],
-        consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.TEST_ARTIFACT},
+        consumer_kinds={
+            ArtifactConsumerKind.SITE_ARTIFACT,
+            ArtifactConsumerKind.TEST_ARTIFACT,
+        },
         scope=ArtifactScope.GLOBAL,
         is_intermediate=False,
-        provenance_source="scripts/docs.py:generate_docs_src_versions_for_file"
+        provenance_source="scripts/docs.py:generate_docs_src_versions_for_file",
     )
 
     artifacts["art_source_variants_py310"] = BuildArtifact(
@@ -142,10 +150,13 @@ def build_multilingual_pipeline_graph(
         producer_stage="prep_generate_source_variants",
         consumer_stages=[],
         external_consumers=["documentation_source_tree", "test_suite"],
-        consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.TEST_ARTIFACT},
+        consumer_kinds={
+            ArtifactConsumerKind.SITE_ARTIFACT,
+            ArtifactConsumerKind.TEST_ARTIFACT,
+        },
         scope=ArtifactScope.GLOBAL,
         is_intermediate=False,
-        provenance_source="scripts/docs.py:generate_docs_src_versions_for_file"
+        provenance_source="scripts/docs.py:generate_docs_src_versions_for_file",
     )
 
     staging_consumers = [f"build_locale_staging_{lang}" for lang in locales]
@@ -161,7 +172,7 @@ def build_multilingual_pipeline_graph(
         consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
         scope=ArtifactScope.GLOBAL,
         is_intermediate=True,
-        provenance_source=f"docs/{canonical_locale}/data/sponsors.yml"
+        provenance_source=f"docs/{canonical_locale}/data/sponsors.yml",
     )
 
     # 3. Dynamic Parallel Locale Fan-Out Pipelines
@@ -173,7 +184,7 @@ def build_multilingual_pipeline_graph(
         render_stage_id = f"build_render_locale_{lang}"
         render_stages.append(render_stage_id)
 
-        is_canonical = (lang == canonical_locale)
+        is_canonical = lang == canonical_locale
 
         # Locale Staging Stage
         stages[staging_stage_id] = BuildStage(
@@ -184,8 +195,10 @@ def build_multilingual_pipeline_graph(
             locale=lang,
             inputs=[
                 f"docs/{canonical_locale}/docs/**",
-                f"docs/{lang}/docs/**" if not is_canonical else f"docs/{canonical_locale}/docs/**",
-                f"docs/{canonical_locale}/overrides/partials/banner-sponsors.html"
+                f"docs/{lang}/docs/**"
+                if not is_canonical
+                else f"docs/{canonical_locale}/docs/**",
+                f"docs/{canonical_locale}/overrides/partials/banner-sponsors.html",
             ],
             outputs=[f"staging/{lang}/docs/**", f"staging/{lang}/overrides/**"],
             depends_on=["build_render_sponsor_partial"],
@@ -194,13 +207,15 @@ def build_multilingual_pipeline_graph(
                     antecedent_stage_id="build_render_sponsor_partial",
                     justification_kind=DependencyJustificationKind.ARTIFACT_DEPENDENCY,
                     artifact_id="art_sponsor_partial",
-                    description="Copies rendered banner-sponsors.html override into locale staging tree."
+                    description="Copies rendered banner-sponsors.html override into locale staging tree.",
                 )
             ],
-            strategy="CANONICAL_OVERLAY_WITH_FALLBACK_NOTICE" if not is_canonical else "CANONICAL_IDENTITY_COPY",
+            strategy="CANONICAL_OVERLAY_WITH_FALLBACK_NOTICE"
+            if not is_canonical
+            else "CANONICAL_IDENTITY_COPY",
             consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
             source_provenance_symbol="scripts/docs.py:stage_zensical_docs",
-            rationale=f"Overlay localized documentation tree for {lang} onto {canonical_locale} canonical base."
+            rationale=f"Overlay localized documentation tree for {lang} onto {canonical_locale} canonical base.",
         )
 
         staged_content_art_id = f"art_staged_content_{lang}"
@@ -216,7 +231,7 @@ def build_multilingual_pipeline_graph(
             scope=ArtifactScope.LOCALE,
             locale=lang,
             is_intermediate=True,
-            provenance_source=f"docs/{canonical_locale}/docs"
+            provenance_source=f"docs/{canonical_locale}/docs",
         )
 
         # Locale Config Synthesis Stage
@@ -226,13 +241,18 @@ def build_multilingual_pipeline_graph(
             workflow_kind=StageWorkflowKind.BUILD_PIPELINE,
             scope=ArtifactScope.LOCALE,
             locale=lang,
-            inputs=[f"docs/{canonical_locale}/mkdocs.yml", f"docs/{lang}/mkdocs.yml" if not is_canonical else f"docs/{canonical_locale}/mkdocs.yml"],
+            inputs=[
+                f"docs/{canonical_locale}/mkdocs.yml",
+                f"docs/{lang}/mkdocs.yml"
+                if not is_canonical
+                else f"docs/{canonical_locale}/mkdocs.yml",
+            ],
             outputs=[f"staging/{lang}/mkdocs.yml"],
             depends_on=[staging_stage_id],
             strategy="LOCALE_CONFIG_DERIVATION",
             consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
             source_provenance_symbol="scripts/docs.py:build_zensical_lang_to_stage",
-            rationale=f"Derive {lang}-specific MkDocs configuration with localized theme strings and paths."
+            rationale=f"Derive {lang}-specific MkDocs configuration with localized theme strings and paths.",
         )
 
         config_art_id = f"art_config_{lang}"
@@ -248,7 +268,7 @@ def build_multilingual_pipeline_graph(
             scope=ArtifactScope.LOCALE,
             locale=lang,
             is_intermediate=True,
-            provenance_source=f"docs/{canonical_locale}/mkdocs.yml"
+            provenance_source=f"docs/{canonical_locale}/mkdocs.yml",
         )
 
         # Locale Render Stage
@@ -264,7 +284,7 @@ def build_multilingual_pipeline_graph(
             strategy="ZENSICAL_COMPILATION",
             consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
             source_provenance_symbol="scripts/docs.py:build_zensical_lang_to_stage",
-            rationale=f"Compile staged {lang} documentation into static HTML via Zensical."
+            rationale=f"Compile staged {lang} documentation into static HTML via Zensical.",
         )
 
         html_art_id = f"art_rendered_html_{lang}"
@@ -280,7 +300,7 @@ def build_multilingual_pipeline_graph(
             scope=ArtifactScope.LOCALE,
             locale=lang,
             is_intermediate=True,
-            provenance_source=f"staging/{lang}/docs"
+            provenance_source=f"staging/{lang}/docs",
         )
 
         # Locale Overlay Specification
@@ -297,23 +317,33 @@ def build_multilingual_pipeline_graph(
                     logical_route="index",
                     locale=lang,
                     canonical_source=f"docs/{canonical_locale}/docs/index.md",
-                    localized_source=f"docs/{lang}/docs/index.md" if not is_canonical else f"docs/{canonical_locale}/docs/index.md",
-                    effective_source=f"docs/{lang}/docs/index.md" if not is_canonical else f"docs/{canonical_locale}/docs/index.md",
+                    localized_source=f"docs/{lang}/docs/index.md"
+                    if not is_canonical
+                    else f"docs/{canonical_locale}/docs/index.md",
+                    effective_source=f"docs/{lang}/docs/index.md"
+                    if not is_canonical
+                    else f"docs/{canonical_locale}/docs/index.md",
                     is_fallback=False,
                     translation_notice_required=False,
-                    translation_status="CANONICAL" if is_canonical else "TRANSLATED"
+                    translation_status="CANONICAL" if is_canonical else "TRANSLATED",
                 ),
                 "tutorial/body": LocaleDocumentSpec(
                     logical_route="tutorial/body",
                     locale=lang,
                     canonical_source=f"docs/{canonical_locale}/docs/tutorial/body.md",
-                    localized_source=f"docs/{lang}/docs/tutorial/body.md" if not is_canonical and lang == "de" else None,
-                    effective_source=f"docs/{lang}/docs/tutorial/body.md" if not is_canonical and lang == "de" else f"docs/{canonical_locale}/docs/tutorial/body.md",
+                    localized_source=f"docs/{lang}/docs/tutorial/body.md"
+                    if not is_canonical and lang == "de"
+                    else None,
+                    effective_source=f"docs/{lang}/docs/tutorial/body.md"
+                    if not is_canonical and lang == "de"
+                    else f"docs/{canonical_locale}/docs/tutorial/body.md",
                     is_fallback=(not is_canonical and lang != "de"),
                     translation_notice_required=(not is_canonical and lang != "de"),
-                    translation_status="CANONICAL" if is_canonical else ("TRANSLATED" if lang == "de" else "FALLBACK")
-                )
-            }
+                    translation_status="CANONICAL"
+                    if is_canonical
+                    else ("TRANSLATED" if lang == "de" else "FALLBACK"),
+                ),
+            },
         )
 
     # 4. Global Fan-In Site Assembly
@@ -326,9 +356,12 @@ def build_multilingual_pipeline_graph(
         outputs=["site/**"],
         depends_on=render_stages,
         strategy="ROOT_ASSET_AND_MULTILINGUAL_TOPOLOGY",
-        consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.DEPLOYMENT_ARTIFACT},
+        consumer_kinds={
+            ArtifactConsumerKind.SITE_ARTIFACT,
+            ArtifactConsumerKind.DEPLOYMENT_ARTIFACT,
+        },
         source_provenance_symbol="scripts/docs.py:build_all",
-        rationale="Assemble final multilingual directory tree by copying canonical root and localized subdirectories into site/."
+        rationale="Assemble final multilingual directory tree by copying canonical root and localized subdirectories into site/.",
     )
 
     artifacts["art_assembled_site"] = BuildArtifact(
@@ -339,10 +372,13 @@ def build_multilingual_pipeline_graph(
         artifact_kind="site_tree",
         producer_stage="build_site_assembly",
         consumer_stages=["build_deployment_assembly"],
-        consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.DEPLOYMENT_ARTIFACT},
+        consumer_kinds={
+            ArtifactConsumerKind.SITE_ARTIFACT,
+            ArtifactConsumerKind.DEPLOYMENT_ARTIFACT,
+        },
         scope=ArtifactScope.GLOBAL,
         is_intermediate=True,
-        provenance_source="site"
+        provenance_source="site",
     )
 
     # 5. Deployment Assembly
@@ -357,7 +393,7 @@ def build_multilingual_pipeline_graph(
         strategy="SITEMAP_AND_REDIRECT_ROUTING",
         consumer_kinds={ArtifactConsumerKind.DEPLOYMENT_ARTIFACT},
         source_provenance_symbol="scripts/docs.py:build_all",
-        rationale="Generate deployment routing, root index redirection, and global search sitemap."
+        rationale="Generate deployment routing, root index redirection, and global search sitemap.",
     )
 
     artifacts["art_sitemap"] = BuildArtifact(
@@ -372,11 +408,9 @@ def build_multilingual_pipeline_graph(
         consumer_kinds={ArtifactConsumerKind.DEPLOYMENT_ARTIFACT},
         scope=ArtifactScope.GLOBAL,
         is_intermediate=False,
-        provenance_source="site"
+        provenance_source="site",
     )
 
     return DocumentationBuildGraph(
-        stages=stages,
-        artifacts=artifacts,
-        locales=locale_specs
+        stages=stages, artifacts=artifacts, locales=locale_specs
     )

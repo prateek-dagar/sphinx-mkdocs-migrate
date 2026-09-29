@@ -5,6 +5,7 @@ from sphinx_mkdocs_migrate.analyzer.navigation import NavigationAnalyzer
 from sphinx_mkdocs_migrate.parsing.markdown import MarkdownParser
 from sphinx_mkdocs_migrate.parsing.markdown_ir import NodeKind
 
+
 class TestMilestone31Hardened(unittest.TestCase):
     def setUp(self):
         self.fixture_dir = Path(__file__).parent / "fixtures" / "sample_mkdocs"
@@ -52,14 +53,24 @@ fake nested code
         self.assertIn(NodeKind.CODE_BLOCK, node_kinds)
 
         # 2. Strict isolation check: NO warning or fake symbol should exist anywhere in the entire walked tree
-        all_warnings = [n for n in all_nodes if n.kind == NodeKind.ADMONITION and n.metadata.get("admonition_type") == "warning"]
+        all_warnings = [
+            n
+            for n in all_nodes
+            if n.kind == NodeKind.ADMONITION
+            and n.metadata.get("admonition_type") == "warning"
+        ]
         self.assertEqual(len(all_warnings), 0)
 
         all_symbols = [n for n in all_nodes if n.kind == NodeKind.API_DIRECTIVE]
         self.assertEqual(len(all_symbols), 0)
 
         # 3. Exactly one real note should exist, properly nested under Python Tab
-        all_notes = [n for n in all_nodes if n.kind == NodeKind.ADMONITION and n.metadata.get("admonition_type") == "note"]
+        all_notes = [
+            n
+            for n in all_nodes
+            if n.kind == NodeKind.ADMONITION
+            and n.metadata.get("admonition_type") == "note"
+        ]
         self.assertEqual(len(all_notes), 1)
         self.assertEqual(all_notes[0].metadata["title"], "Real Nested Note")
 
@@ -67,15 +78,17 @@ fake nested code
         nav_analyzer = NavigationAnalyzer(self.fixture_dir)
         raw_nav = [
             {"Home": "./index.md#intro"},
-            {"Guides": [
-                {"Getting Started": "./guide/start.md"},
-                {"Missing Page": "guide/missing.md"}
-            ]}
+            {
+                "Guides": [
+                    {"Getting Started": "./guide/start.md"},
+                    {"Missing Page": "guide/missing.md"},
+                ]
+            },
         ]
         discovered_files = [
             self.fixture_dir / "docs" / "index.md",
             self.fixture_dir / "docs" / "guide" / "start.md",
-            self.fixture_dir / "docs" / "unlisted_orphan.md"
+            self.fixture_dir / "docs" / "unlisted_orphan.md",
         ]
         docs_dir = self.fixture_dir / "docs"
 
@@ -83,10 +96,10 @@ fake nested code
 
         self.assertTrue(nav_analysis.has_nav)
         self.assertEqual(nav_analysis.total_nav_entries, 4)
-        
+
         # Missing reference validation (guide/missing.md is in nav but not on disk)
         self.assertIn("guide/missing.md", nav_analysis.missing_references)
-        
+
         # Orphan detection (unlisted_orphan.md is on disk but not in nav)
         self.assertIn("unlisted_orphan.md", nav_analysis.orphan_documents)
 
@@ -122,7 +135,7 @@ fake nested code
         from sphinx_mkdocs_migrate.analyzer.models import (
             ProjectAnalysisReport,
             VersionEnvironment,
-            PackageVersionInfo
+            PackageVersionInfo,
         )
 
         # Report A: mkdocs-material >=8.5, resolved 9.7.7
@@ -137,14 +150,11 @@ fake nested code
                     resolved_version="9.7.7",
                     resolution_status="INSTALLED_RESOLVED",
                     resolution_source="CURRENT_PYTHON_ENVIRONMENT",
-                    satisfies_declared_constraint=True
+                    satisfies_declared_constraint=True,
                 )
-            }
+            },
         )
-        report_a = ProjectAnalysisReport(
-            project_root="/dummy/repo",
-            version_env=env_a
-        )
+        report_a = ProjectAnalysisReport(project_root="/dummy/repo", version_env=env_a)
 
         # Report B: mkdocs-material >=8.5, resolved 9.8.0 under Python 3.11
         env_b = VersionEnvironment(
@@ -158,20 +168,19 @@ fake nested code
                     resolved_version="9.8.0",
                     resolution_status="INSTALLED_RESOLVED",
                     resolution_source="CURRENT_PYTHON_ENVIRONMENT",
-                    satisfies_declared_constraint=True
+                    satisfies_declared_constraint=True,
                 )
-            }
+            },
         )
-        report_b = ProjectAnalysisReport(
-            project_root="/dummy/repo",
-            version_env=env_b
-        )
+        report_b = ProjectAnalysisReport(project_root="/dummy/repo", version_env=env_b)
 
         # Invariant 1: Source identity MUST match despite environment difference
         self.assertEqual(report_a.canonical_hash(), report_b.canonical_hash())
 
         # Invariant 2: Observed environment fingerprint MUST differ
-        self.assertNotEqual(report_a.environment_fingerprint(), report_b.environment_fingerprint())
+        self.assertNotEqual(
+            report_a.environment_fingerprint(), report_b.environment_fingerprint()
+        )
 
         # Report C: Alter the source declaration itself: >=8.5 -> >=9.0
         env_c = VersionEnvironment(
@@ -185,14 +194,11 @@ fake nested code
                     resolved_version="9.7.7",
                     resolution_status="INSTALLED_RESOLVED",
                     resolution_source="CURRENT_PYTHON_ENVIRONMENT",
-                    satisfies_declared_constraint=True
+                    satisfies_declared_constraint=True,
                 )
-            }
+            },
         )
-        report_c = ProjectAnalysisReport(
-            project_root="/dummy/repo",
-            version_env=env_c
-        )
+        report_c = ProjectAnalysisReport(project_root="/dummy/repo", version_env=env_c)
 
         # Invariant 3: Source declaration change MUST alter canonical hash
         self.assertNotEqual(report_a.canonical_hash(), report_c.canonical_hash())
@@ -205,7 +211,7 @@ fake nested code
         from sphinx_mkdocs_migrate.analyzer.models import (
             ProjectAnalysisReport,
             VersionEnvironment,
-            PackageVersionInfo
+            PackageVersionInfo,
         )
 
         # Report Installed
@@ -217,13 +223,12 @@ fake nested code
                     resolved_version="0.25.1",
                     resolution_status="INSTALLED_RESOLVED",
                     resolution_source="CURRENT_PYTHON_ENVIRONMENT",
-                    satisfies_declared_constraint=True
+                    satisfies_declared_constraint=True,
                 )
             }
         )
         report_installed = ProjectAnalysisReport(
-            project_root="/dummy/repo",
-            version_env=env_installed
+            project_root="/dummy/repo", version_env=env_installed
         )
 
         # Report Unresolved
@@ -235,20 +240,88 @@ fake nested code
                     resolved_version=None,
                     resolution_status="UNRESOLVED",
                     resolution_source=None,
-                    satisfies_declared_constraint=None
+                    satisfies_declared_constraint=None,
                 )
             }
         )
         report_unresolved = ProjectAnalysisReport(
-            project_root="/dummy/repo",
-            version_env=env_unresolved
+            project_root="/dummy/repo", version_env=env_unresolved
         )
 
         # Source canonical hash remains strictly invariant
-        self.assertEqual(report_installed.canonical_hash(), report_unresolved.canonical_hash())
-        self.assertNotEqual(report_installed.environment_fingerprint(), report_unresolved.environment_fingerprint())
+        self.assertEqual(
+            report_installed.canonical_hash(), report_unresolved.canonical_hash()
+        )
+        self.assertNotEqual(
+            report_installed.environment_fingerprint(),
+            report_unresolved.environment_fingerprint(),
+        )
+
+    def test_comprehensive_ci_analyzer(self):
+        """Verify CIAnalyzer discovers GitHub Actions, tox, RTD, Makefile, nox, and GitLab CI."""
+        import tempfile
+        from sphinx_mkdocs_migrate.analyzer.ci import CIAnalyzer
+
+        with tempfile.TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+
+            # Setup GitHub Actions
+            wf_dir = tmp / ".github" / "workflows"
+            wf_dir.mkdir(parents=True)
+            (wf_dir / "docs.yml").write_text(
+                "jobs:\n  deploy:\n    steps:\n      - uses: actions/checkout@v4\n"
+                "      - uses: astral-sh/setup-uv@v3\n      - run: uvx tox -e docs\n"
+                "      - run: mkdocs gh-deploy\n",
+                encoding="utf-8",
+            )
+
+            # Setup tox.ini
+            (tmp / "tox.ini").write_text(
+                "[tox]\nenvlist = py312\n[testenv:docs]\ndependency_groups = dev\ncommands =\n    mkdocs build\n",
+                encoding="utf-8",
+            )
+
+            # Setup .readthedocs.yaml
+            (tmp / ".readthedocs.yaml").write_text(
+                "version: 2\nmkdocs:\n  configuration: mkdocs.yml\n", encoding="utf-8"
+            )
+
+            # Setup Makefile
+            (tmp / "Makefile").write_text("docs:\n\tmkdocs build\n", encoding="utf-8")
+
+            # Setup noxfile.py
+            (tmp / "noxfile.py").write_text(
+                "import nox\n@nox.session\ndef docs(session):\n    pass\n",
+                encoding="utf-8",
+            )
+
+            # Setup .gitlab-ci.yml
+            (tmp / ".gitlab-ci.yml").write_text(
+                "pages:\n  script:\n    - mkdocs build\n", encoding="utf-8"
+            )
+
+            ci_analysis = CIAnalyzer(tmp).analyze()
+
+            self.assertEqual(ci_analysis.ci_system, "github_actions")
+            self.assertTrue(ci_analysis.github_actions_detected)
+            self.assertTrue(ci_analysis.has_mkdocs_deploy)
+            self.assertTrue(ci_analysis.has_tox_in_ci)
+            self.assertTrue(ci_analysis.has_uv_in_ci)
+            self.assertEqual(ci_analysis.checkout_action_ref, "v4")
+            self.assertEqual(ci_analysis.setup_uv_action_ref, "v3")
+            self.assertIn(".github/workflows/docs.yml", ci_analysis.docs_workflow_files)
+
+            self.assertTrue(ci_analysis.has_tox)
+            self.assertTrue(ci_analysis.tox_has_docs_env)
+            self.assertEqual(ci_analysis.tox_dependency_spec, "dependency_groups = dev")
+
+            self.assertTrue(ci_analysis.readthedocs_detected)
+            self.assertEqual(ci_analysis.rtd_config_file, ".readthedocs.yaml")
+
+            self.assertTrue(ci_analysis.has_makefile)
+            self.assertTrue(ci_analysis.has_nox)
+            self.assertTrue(ci_analysis.gitlab_ci_detected)
 
 
 if __name__ == "__main__":
     unittest.main()
-

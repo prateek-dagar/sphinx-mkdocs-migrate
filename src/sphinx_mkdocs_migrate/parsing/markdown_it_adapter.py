@@ -1,6 +1,7 @@
 """Markdown-it-py adapter with controlled MkDocs source extension parsing."""
+
 import re
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Tuple
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
 from .markdown_ir import NodeKind, BaseIRNode, DocumentIR
@@ -8,16 +9,17 @@ from .markdown_ir import NodeKind, BaseIRNode, DocumentIR
 # Controlled MkDocs / PyMdown syntax patterns
 RE_ADMONITION_HEADER = re.compile(
     r"^(?P<indent>[ ]{0,3})!{3}[ ]+(?P<type>note|warning|tip|info|important|caution|danger|bug|example|quote|abstract|check|question|fail|success)(?:[ ]+\"(?P<title>[^\"]*)\")?",
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 RE_DETAILS_HEADER = re.compile(
     r"^(?P<indent>[ ]{0,3})\?{3}(?P<state>\+|-)?(?:[ ]+(?P<type>note|warning|tip|info|details))?[ ]+\"(?P<title>[^\"]+)\"",
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 RE_TAB_HEADER = re.compile(r"^(?P<indent>[ ]{0,3})={3}[ ]+\"(?P<title>[^\"]+)\"")
 RE_MKDOCSTRINGS = re.compile(r"^:::[ ]+(?P<symbol>[a-zA-Z0-9_\.]+)")
 RE_SNIPPET = re.compile(r"^--8<--[ ]+\"(?P<filepath>[^\"]+)\"")
 RE_CODE_FENCE_START = re.compile(r"^(?P<indent>[ ]{0,3})(?P<char>`|~){3,}")
+
 
 class MarkdownIRBuilder:
     """Builds a structured DocumentIR tree combining markdown-it tokens with controlled MkDocs extensions."""
@@ -47,7 +49,9 @@ class MarkdownIRBuilder:
             nonlocal chunk, chunk_line_map
             if chunk:
                 text_block = "\n".join(chunk)
-                sub_nodes = self._parse_standard_markdown_chunk(text_block, chunk_line_map)
+                sub_nodes = self._parse_standard_markdown_chunk(
+                    text_block, chunk_line_map
+                )
                 nodes.extend(sub_nodes)
                 chunk = []
                 chunk_line_map = []
@@ -64,7 +68,7 @@ class MarkdownIRBuilder:
                 fence_char = m_fence.group("char")
                 match_str = m_fence.group(0).strip()
                 fence_len = len(match_str)
-                
+
                 chunk.append(line)
                 chunk_line_map.append(line_map[i])
                 i += 1
@@ -101,7 +105,9 @@ class MarkdownIRBuilder:
                     if RE_TAB_HEADER.match(next_l):
                         break
                     if next_l.startswith("    ") or next_l.startswith("\t"):
-                        stripped = next_l[4:] if next_l.startswith("    ") else next_l[1:]
+                        stripped = (
+                            next_l[4:] if next_l.startswith("    ") else next_l[1:]
+                        )
                         tab_body_lines.append(stripped)
                         tab_body_line_map.append(line_map[i])
                         i += 1
@@ -122,7 +128,7 @@ class MarkdownIRBuilder:
                     end_line=tab_end_l,
                     raw_text=tab_header_line,
                     metadata={"title": title},
-                    children=child_nodes
+                    children=child_nodes,
                 )
 
                 if current_tab_set is not None:
@@ -134,7 +140,7 @@ class MarkdownIRBuilder:
                         start_line=tab_start_l,
                         end_line=tab_end_l,
                         raw_text="",
-                        children=[tab_item]
+                        children=[tab_item],
                     )
                     nodes.append(current_tab_set)
                 continue
@@ -163,7 +169,9 @@ class MarkdownIRBuilder:
                         i += 1
                         continue
                     if next_l.startswith("    ") or next_l.startswith("\t"):
-                        stripped = next_l[4:] if next_l.startswith("    ") else next_l[1:]
+                        stripped = (
+                            next_l[4:] if next_l.startswith("    ") else next_l[1:]
+                        )
                         adm_body_lines.append(stripped)
                         adm_body_line_map.append(line_map[i])
                         i += 1
@@ -184,7 +192,7 @@ class MarkdownIRBuilder:
                     end_line=adm_end_l,
                     raw_text=adm_header,
                     metadata={"admonition_type": adm_type, "title": title},
-                    children=child_nodes
+                    children=child_nodes,
                 )
                 nodes.append(adm_node)
                 continue
@@ -195,7 +203,7 @@ class MarkdownIRBuilder:
                 flush_chunk()
                 title = m_det.group("title")
                 state = m_det.group("state")
-                is_open = (state == "+")
+                is_open = state == "+"
                 det_start_l = line_map[i]
                 det_header = line
                 i += 1
@@ -211,7 +219,9 @@ class MarkdownIRBuilder:
                         i += 1
                         continue
                     if next_l.startswith("    ") or next_l.startswith("\t"):
-                        stripped = next_l[4:] if next_l.startswith("    ") else next_l[1:]
+                        stripped = (
+                            next_l[4:] if next_l.startswith("    ") else next_l[1:]
+                        )
                         det_body_lines.append(stripped)
                         det_body_line_map.append(line_map[i])
                         i += 1
@@ -232,7 +242,7 @@ class MarkdownIRBuilder:
                     end_line=det_end_l,
                     raw_text=det_header,
                     metadata={"title": title, "open_state": is_open},
-                    children=child_nodes
+                    children=child_nodes,
                 )
                 nodes.append(det_node)
                 continue
@@ -246,12 +256,14 @@ class MarkdownIRBuilder:
                 i += 1
                 while i < n:
                     next_l = lines[i]
-                    if next_l.startswith("    ") or next_l.startswith("\t"):
-                        s_next = next_l.strip()
-                        if s_next.startswith(":") or s_next.startswith("options:"):
-                            api_raw_lines.append(next_l)
-                            i += 1
-                            continue
+                    if (
+                        next_l.startswith("    ")
+                        or next_l.startswith("\t")
+                        or (len(api_raw_lines) > 1 and next_l.startswith("  "))
+                    ):
+                        api_raw_lines.append(next_l)
+                        i += 1
+                        continue
                     break
                 api_end_l = line_map[i - 1]
                 api_node = BaseIRNode(
@@ -259,7 +271,7 @@ class MarkdownIRBuilder:
                     start_line=api_start_l,
                     end_line=api_end_l,
                     raw_text="\n".join(api_raw_lines),
-                    metadata={"symbol": m_api.group("symbol")}
+                    metadata={"symbol": m_api.group("symbol")},
                 )
                 nodes.append(api_node)
                 continue
@@ -273,7 +285,7 @@ class MarkdownIRBuilder:
                     start_line=line_map[i],
                     end_line=line_map[i],
                     raw_text=line,
-                    metadata={"filepath": m_snip.group("filepath")}
+                    metadata={"filepath": m_snip.group("filepath")},
                 )
                 nodes.append(snip_node)
                 i += 1
@@ -287,7 +299,9 @@ class MarkdownIRBuilder:
         flush_chunk()
         return nodes
 
-    def _parse_standard_markdown_chunk(self, text: str, line_map: List[int]) -> List[BaseIRNode]:
+    def _parse_standard_markdown_chunk(
+        self, text: str, line_map: List[int]
+    ) -> List[BaseIRNode]:
         tokens = self.md_parser.parse(text)
         nodes: List[BaseIRNode] = []
         stack: List[BaseIRNode] = []
@@ -301,13 +315,17 @@ class MarkdownIRBuilder:
             if token.type == "fence":
                 start_l, end_l = self._get_lines(token, line_map)
                 info = token.info.strip()
-                kind = NodeKind.MERMAID_DIAGRAM if info == "mermaid" else NodeKind.CODE_BLOCK
+                kind = (
+                    NodeKind.MERMAID_DIAGRAM
+                    if info == "mermaid"
+                    else NodeKind.CODE_BLOCK
+                )
                 fence_node = BaseIRNode(
                     kind=kind,
                     start_line=start_l,
                     end_line=end_l,
                     raw_text=token.content,
-                    metadata={"info_string": info}
+                    metadata={"info_string": info},
                 )
                 if stack:
                     stack[-1].children.append(fence_node)
@@ -319,7 +337,11 @@ class MarkdownIRBuilder:
             # 2. Heading
             if token.type == "heading_open":
                 start_l, end_l = self._get_lines(token, line_map)
-                level = int(token.tag[1:]) if len(token.tag) > 1 and token.tag[1:].isdigit() else 1
+                level = (
+                    int(token.tag[1:])
+                    if len(token.tag) > 1 and token.tag[1:].isdigit()
+                    else 1
+                )
                 title = ""
                 if i + 1 < n and tokens[i + 1].type == "inline":
                     title = tokens[i + 1].content.strip()
@@ -328,7 +350,7 @@ class MarkdownIRBuilder:
                     start_line=start_l,
                     end_line=end_l,
                     raw_text=title,
-                    metadata={"level": level, "title": title}
+                    metadata={"level": level, "title": title},
                 )
                 if stack:
                     stack[-1].children.append(head_node)
@@ -340,17 +362,28 @@ class MarkdownIRBuilder:
                 continue
 
             # 3. Lists & Blockquotes (Containers)
-            if token.type in ("blockquote_open", "bullet_list_open", "ordered_list_open", "list_item_open"):
+            if token.type in (
+                "blockquote_open",
+                "bullet_list_open",
+                "ordered_list_open",
+                "list_item_open",
+            ):
                 start_l, end_l = self._get_lines(token, line_map)
-                kind = NodeKind.BLOCK_QUOTE if token.type == "blockquote_open" else (
-                    NodeKind.LIST_ITEM if token.type == "list_item_open" else NodeKind.LIST
+                kind = (
+                    NodeKind.BLOCK_QUOTE
+                    if token.type == "blockquote_open"
+                    else (
+                        NodeKind.LIST_ITEM
+                        if token.type == "list_item_open"
+                        else NodeKind.LIST
+                    )
                 )
                 container_node = BaseIRNode(
                     kind=kind,
                     start_line=start_l,
                     end_line=end_l,
                     raw_text="",
-                    metadata={"token_tag": token.tag}
+                    metadata={"token_tag": token.tag},
                 )
                 if stack:
                     stack[-1].children.append(container_node)
@@ -360,7 +393,12 @@ class MarkdownIRBuilder:
                 i += 1
                 continue
 
-            if token.type in ("blockquote_close", "bullet_list_close", "ordered_list_close", "list_item_close"):
+            if token.type in (
+                "blockquote_close",
+                "bullet_list_close",
+                "ordered_list_close",
+                "list_item_close",
+            ):
                 if stack:
                     stack.pop()
                 i += 1
@@ -369,14 +407,18 @@ class MarkdownIRBuilder:
             # 4. Paragraphs & Generic Inline Links
             if token.type == "paragraph_open":
                 start_l, end_l = self._get_lines(token, line_map)
-                content_token = tokens[i + 1] if i + 1 < n and tokens[i + 1].type == "inline" else None
+                content_token = (
+                    tokens[i + 1]
+                    if i + 1 < n and tokens[i + 1].type == "inline"
+                    else None
+                )
                 content_text = content_token.content.strip() if content_token else ""
 
                 p_node = BaseIRNode(
                     kind=NodeKind.PARAGRAPH,
                     start_line=start_l,
                     end_line=end_l,
-                    raw_text=content_text
+                    raw_text=content_text,
                 )
                 if content_token and content_token.children:
                     self._extract_generic_links(content_token.children, p_node, start_l)
@@ -398,7 +440,7 @@ class MarkdownIRBuilder:
                     kind=NodeKind.HTML_BLOCK,
                     start_line=start_l,
                     end_line=end_l,
-                    raw_text=token.content
+                    raw_text=token.content,
                 )
                 if stack:
                     stack[-1].children.append(html_node)
@@ -418,7 +460,9 @@ class MarkdownIRBuilder:
             return line_map[start_idx], line_map[end_idx]
         return 1, 1
 
-    def _extract_generic_links(self, inline_children: List[Token], parent: BaseIRNode, line_no: int):
+    def _extract_generic_links(
+        self, inline_children: List[Token], parent: BaseIRNode, line_no: int
+    ):
         """Extracts destination-neutral link references from markdown-it inline tokens."""
         j = 0
         m = len(inline_children)
@@ -429,18 +473,24 @@ class MarkdownIRBuilder:
                 link_text = ""
                 if j + 1 < m and inline_children[j + 1].type == "text":
                     link_text = inline_children[j + 1].content
-                
-                is_ext = href.startswith("http://") or href.startswith("https://") or href.startswith("mailto:")
-                parent.children.append(BaseIRNode(
-                    kind=NodeKind.LINK_REF,
-                    start_line=line_no,
-                    end_line=line_no,
-                    raw_text=link_text,
-                    metadata={
-                        "text": link_text,
-                        "href": href,
-                        "is_external": is_ext,
-                        "target_path": href
-                    }
-                ))
+
+                is_ext = (
+                    href.startswith("http://")
+                    or href.startswith("https://")
+                    or href.startswith("mailto:")
+                )
+                parent.children.append(
+                    BaseIRNode(
+                        kind=NodeKind.LINK_REF,
+                        start_line=line_no,
+                        end_line=line_no,
+                        raw_text=link_text,
+                        metadata={
+                            "text": link_text,
+                            "href": href,
+                            "is_external": is_ext,
+                            "target_path": href,
+                        },
+                    )
+                )
             j += 1

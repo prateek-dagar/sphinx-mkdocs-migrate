@@ -2,6 +2,7 @@ import unittest
 from sphinx_mkdocs_migrate.parsing.markdown import MarkdownParser
 from sphinx_mkdocs_migrate.parsing.markdown_ir import NodeKind
 
+
 class TestMarkdownItAdapter(unittest.TestCase):
     def setUp(self):
         self.parser = MarkdownParser()
@@ -76,11 +77,17 @@ echo "hello from tilde"
         self.assertIn(NodeKind.CODE_BLOCK, node_kinds)
 
         # Strict isolation check
-        fake_warnings = [n for n in all_nodes if n.kind == NodeKind.ADMONITION and n.metadata.get("admonition_type") == "warning"]
+        fake_warnings = [
+            n
+            for n in all_nodes
+            if n.kind == NodeKind.ADMONITION
+            and n.metadata.get("admonition_type") == "warning"
+        ]
         self.assertEqual(len(fake_warnings), 0)
 
         fake_symbols = [n for n in all_nodes if n.kind == NodeKind.API_DIRECTIVE]
         self.assertEqual(len(fake_symbols), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

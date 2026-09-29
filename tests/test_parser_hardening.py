@@ -5,33 +5,34 @@
 4. Generic destination-neutral link extraction in nested containers.
 5. Markdown fence edge cases (info strings with attributes, variable length backticks/tildes).
 """
+
 import unittest
 from sphinx_mkdocs_migrate.parsing.markdown import MarkdownParser
 from sphinx_mkdocs_migrate.parsing.markdown_ir import NodeKind
 
-class TestMilestone31cHardening(unittest.TestCase):
 
+class TestMilestone31cHardening(unittest.TestCase):
     def setUp(self):
         self.parser = MarkdownParser()
 
     def test_exact_source_line_mapping_in_deep_nesting(self):
         # 1-indexed line test
         doc = (
-            "# Top Heading\n"                  # 1
-            "\n"                                # 2
-            "=== \"Tab 1\"\n"                   # 3
-            "\n"                                # 4
-            "    !!! note \"Nested Note\"\n"    # 5
-            "\n"                                # 6
-            "        ???+ details \"Deep Details\"\n" # 7
-            "\n"                                # 8
+            "# Top Heading\n"  # 1
+            "\n"  # 2
+            '=== "Tab 1"\n'  # 3
+            "\n"  # 4
+            '    !!! note "Nested Note"\n'  # 5
+            "\n"  # 6
+            '        ???+ details "Deep Details"\n'  # 7
+            "\n"  # 8
             "            ```python {#my-id}\n"  # 9
             "            print('deep code')\n"  # 10
-            "            ```\n"                 # 11
-            "\n"                                # 12
-            "=== \"Tab 2\"\n"                   # 13
-            "\n"                                # 14
-            "    Paragraph in Tab 2.\n"         # 15
+            "            ```\n"  # 11
+            "\n"  # 12
+            '=== "Tab 2"\n'  # 13
+            "\n"  # 14
+            "    Paragraph in Tab 2.\n"  # 15
         )
         doc_ir = self.parser.parse_text(doc, "nested.md")
         nodes = doc_ir.nodes
@@ -81,20 +82,20 @@ class TestMilestone31cHardening(unittest.TestCase):
 
     def test_multiple_independent_tab_sets(self):
         doc = (
-            "=== \"Set 1 Tab A\"\n"   # 1
-            "    Content A\n"          # 2
-            "=== \"Set 1 Tab B\"\n"   # 3
-            "    Content B\n"          # 4
-            "\n"                       # 5
-            "Paragraph between sets.\n"# 6
-            "\n"                       # 7
-            "=== \"Set 2 Tab X\"\n"   # 8
-            "    Content X\n"          # 9
-            "=== \"Set 2 Tab Y\"\n"   # 10
-            "    Content Y\n"          # 11
+            '=== "Set 1 Tab A"\n'  # 1
+            "    Content A\n"  # 2
+            '=== "Set 1 Tab B"\n'  # 3
+            "    Content B\n"  # 4
+            "\n"  # 5
+            "Paragraph between sets.\n"  # 6
+            "\n"  # 7
+            '=== "Set 2 Tab X"\n'  # 8
+            "    Content X\n"  # 9
+            '=== "Set 2 Tab Y"\n'  # 10
+            "    Content Y\n"  # 11
         )
         doc_ir = self.parser.parse_text(doc, "multi_tabs.md")
-        
+
         tab_sets = [n for n in doc_ir.nodes if n.kind == NodeKind.TAB_SET]
         self.assertEqual(len(tab_sets), 2)
 
@@ -143,7 +144,7 @@ class TestMilestone31cHardening(unittest.TestCase):
             "```\n"
             "\n"
             "~~~json\n"
-            "{\"key\": \"val\"}\n"
+            '{"key": "val"}\n'
             "~~~\n"
         )
         doc_ir = self.parser.parse_text(doc, "fences.md")
@@ -151,8 +152,12 @@ class TestMilestone31cHardening(unittest.TestCase):
         code_blocks = [n for n in doc_ir.nodes if n.kind == NodeKind.CODE_BLOCK]
         self.assertEqual(len(code_blocks), 2)
 
-        self.assertEqual(code_blocks[0].metadata["info_string"], "python {hl_lines=[1, 3] linenums=1}")
+        self.assertEqual(
+            code_blocks[0].metadata["info_string"],
+            "python {hl_lines=[1, 3] linenums=1}",
+        )
         self.assertEqual(code_blocks[1].metadata["info_string"], "json")
+
 
 if __name__ == "__main__":
     unittest.main()

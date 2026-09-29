@@ -1,7 +1,9 @@
 """Subsystem analyzer for MkDocs declarative navigation trees with path normalization and missing file detection."""
+
 from pathlib import Path, PurePosixPath
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Any, Optional, Set
 from .models import NavigationItem, NavigationAnalysis
+
 
 def _normalize_nav_path(raw_path: str) -> str:
     """Normalizes relative navigation paths (e.g. './guide/index.md#sec' -> 'guide/index.md')."""
@@ -12,13 +14,16 @@ def _normalize_nav_path(raw_path: str) -> str:
         clean = clean[2:]
     return str(PurePosixPath(clean))
 
+
 class NavigationAnalyzer:
     """Parses, normalizes, and validates the raw nav tree from mkdocs.yml against discovered files."""
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
 
-    def analyze(self, raw_nav: Optional[Any], discovered_md_files: List[Path], docs_dir: Path) -> NavigationAnalysis:
+    def analyze(
+        self, raw_nav: Optional[Any], discovered_md_files: List[Path], docs_dir: Path
+    ) -> NavigationAnalysis:
         if raw_nav is None:
             return NavigationAnalysis(has_nav=False)
 
@@ -38,8 +43,12 @@ class NavigationAnalyzer:
                         referenced_paths.add(norm_p)
                         return NavigationItem(title=str(label), path=norm_p)
                     elif isinstance(val, list):
-                        child_items = [c for c in (parse_node(item) for item in val) if c]
-                        return NavigationItem(title=str(label), path=None, children=child_items)
+                        child_items = [
+                            c for c in (parse_node(item) for item in val) if c
+                        ]
+                        return NavigationItem(
+                            title=str(label), path=None, children=child_items
+                        )
             return None
 
         if isinstance(raw_nav, list):
@@ -48,7 +57,9 @@ class NavigationAnalyzer:
                 if item:
                     parsed_items.append(item)
 
-        def count_and_depth(items: List[NavigationItem], current_depth: int = 1) -> tuple[int, int]:
+        def count_and_depth(
+            items: List[NavigationItem], current_depth: int = 1
+        ) -> tuple[int, int]:
             total = 0
             max_d = current_depth
             for it in items:
@@ -93,5 +104,5 @@ class NavigationAnalyzer:
             missing_references=sorted(missing_refs),
             generated_wildcard_references=sorted(generated_wildcard_refs),
             orphan_documents=sorted(orphans),
-            tree=parsed_items
+            tree=parsed_items,
         )

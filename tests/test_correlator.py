@@ -1,5 +1,5 @@
 """Tests for Phase 4: Deterministic Source IR <-> Rendered Evidence Correlation."""
-import pytest
+
 from sphinx_mkdocs_migrate.parsing.flow_extractor import DocumentFlowExtractor
 from research.html_parity.rendered_evidence import (
     RenderedEvidenceExtractor,
@@ -9,12 +9,13 @@ from research.html_parity.correlator import (
     SourceRenderedCorrelator,
     CorrelationStatus,
     CorrelationCardinality,
-    CorrelationMethod
+    CorrelationMethod,
 )
+
 
 def test_source_rendered_correlation_deterministic():
     """Invariant: Correlates source Markdown IR with rendered HTML evidence with 1-to-many API expansion."""
-    markdown_text = '''# API Guide
+    markdown_text = """# API Guide
 
 Introduction to the API.
 
@@ -23,8 +24,8 @@ Introduction to the API.
 ```python
 formatter = JsonFormatter()
 ```
-'''
-    html_text = '''<!DOCTYPE html>
+"""
+    html_text = """<!DOCTYPE html>
 <html>
 <body>
   <article>
@@ -39,13 +40,15 @@ formatter = JsonFormatter()
     <pre><code class="lang-python">formatter = JsonFormatter()</code></pre>
   </article>
 </body>
-</html>'''
+</html>"""
 
     src_extractor = DocumentFlowExtractor(file_path="docs/api.md")
     src_page = src_extractor.extract_from_text(markdown_text)
 
     rendered_extractor = RenderedEvidenceExtractor()
-    rendered_evidence = rendered_extractor.extract_from_html(html_text, source_path="site/api/index.html")
+    rendered_evidence = rendered_extractor.extract_from_html(
+        html_text, source_path="site/api/index.html"
+    )
 
     correlator = SourceRenderedCorrelator()
     report = correlator.correlate_page(src_page, rendered_evidence)
@@ -79,15 +82,16 @@ formatter = JsonFormatter()
     # 5. Invariant: 0 unmapped source constructs
     assert len(report.uncorrelated_source_ids) == 0
 
+
 def test_source_rendered_correlation_ambiguity_not_guessed():
     """Invariant: Multiple identical source paragraphs with duplicate rendered HTML are marked AMBIGUOUS rather than guessed."""
-    markdown_text = '''# Section
+    markdown_text = """# Section
 
 Duplicate content paragraph.
 
 Duplicate content paragraph.
-'''
-    html_text = '''<!DOCTYPE html>
+"""
+    html_text = """<!DOCTYPE html>
 <html>
 <body>
   <article>
@@ -96,13 +100,15 @@ Duplicate content paragraph.
     <p>Duplicate content paragraph.</p>
   </article>
 </body>
-</html>'''
+</html>"""
 
     src_extractor = DocumentFlowExtractor(file_path="docs/ambig.md")
     src_page = src_extractor.extract_from_text(markdown_text)
 
     rendered_extractor = RenderedEvidenceExtractor()
-    rendered_evidence = rendered_extractor.extract_from_html(html_text, source_path="site/ambig/index.html")
+    rendered_evidence = rendered_extractor.extract_from_html(
+        html_text, source_path="site/ambig/index.html"
+    )
 
     correlator = SourceRenderedCorrelator()
     report = correlator.correlate_page(src_page, rendered_evidence)
@@ -123,7 +129,7 @@ def test_defaults_rendered_semantic_flow_and_api_parity():
         "::: pythonjsonlogger.defaults\n"
     )
 
-    rendered_html = '''<!DOCTYPE html>
+    rendered_html = """<!DOCTYPE html>
 <html>
 <body>
   <article>
@@ -165,13 +171,15 @@ def test_defaults_rendered_semantic_flow_and_api_parity():
     </dl>
   </article>
 </body>
-</html>'''
+</html>"""
 
     src_extractor = DocumentFlowExtractor(file_path="docs/defaults.md")
     src_page = src_extractor.extract_from_text(source_md)
 
     rendered_extractor = RenderedEvidenceExtractor()
-    rendered_evidence = rendered_extractor.extract_from_html(rendered_html, source_path="site/defaults/index.html")
+    rendered_evidence = rendered_extractor.extract_from_html(
+        rendered_html, source_path="site/defaults/index.html"
+    )
 
     # 1. Flow Invariant: Title -> Prose 1 -> Prose 2 -> Prose 3 -> API
     flow = rendered_evidence.semantic_flow
@@ -193,7 +201,8 @@ def test_defaults_rendered_semantic_flow_and_api_parity():
 
     # 3. Verify Exact 1:1 API Symbol Contract for all 10 symbols
     rendered_api_objects = [
-        elem.content for elem in rendered_evidence.semantic_flow
+        elem.content
+        for elem in rendered_evidence.semantic_flow
         if isinstance(elem.content, RenderedApiObject)
     ]
     assert len(rendered_api_objects) == 10
@@ -224,7 +233,7 @@ def test_core_rendered_api_hierarchy_and_flow_parity():
         "::: pythonjsonlogger.core\n"
     )
 
-    rendered_html = '''<!DOCTYPE html>
+    rendered_html = """<!DOCTYPE html>
 <html>
 <body>
   <article>
@@ -269,13 +278,15 @@ def test_core_rendered_api_hierarchy_and_flow_parity():
     </dl>
   </article>
 </body>
-</html>'''
+</html>"""
 
     src_extractor = DocumentFlowExtractor(file_path="docs/core.md")
     src_page = src_extractor.extract_from_text(source_md)
 
     rendered_extractor = RenderedEvidenceExtractor()
-    rendered_evidence = rendered_extractor.extract_from_html(rendered_html, source_path="site/core/index.html")
+    rendered_evidence = rendered_extractor.extract_from_html(
+        rendered_html, source_path="site/core/index.html"
+    )
 
     # 1. Flow Invariant: Title -> Prose -> API
     flow = rendered_evidence.semantic_flow
@@ -324,13 +335,33 @@ def test_core_rendered_api_hierarchy_and_flow_parity():
         assert api_map[method_qname].object_kind == "method"
 
     # C. API Callable Contract (Signatures present and valid)
-    assert "class BaseJsonFormatter" in api_map["pythonjsonlogger.core.BaseJsonFormatter"].signature
-    assert "format(record)" in api_map["pythonjsonlogger.core.BaseJsonFormatter.format"].signature
-    assert "add_fields(" in api_map["pythonjsonlogger.core.BaseJsonFormatter.add_fields"].signature
-    assert "merge_record_extra(" in api_map["pythonjsonlogger.core.merge_record_extra"].signature
+    assert (
+        "class BaseJsonFormatter"
+        in api_map["pythonjsonlogger.core.BaseJsonFormatter"].signature
+    )
+    assert (
+        "format(record)"
+        in api_map["pythonjsonlogger.core.BaseJsonFormatter.format"].signature
+    )
+    assert (
+        "add_fields("
+        in api_map["pythonjsonlogger.core.BaseJsonFormatter.add_fields"].signature
+    )
+    assert (
+        "merge_record_extra("
+        in api_map["pythonjsonlogger.core.merge_record_extra"].signature
+    )
 
     # D. API Documentation Contract (Normalized docstring presence)
-    assert api_map["pythonjsonlogger.core.BaseJsonFormatter"].docstring == "Base class for json log formatters."
-    assert api_map["pythonjsonlogger.core.BaseJsonFormatter.add_fields"].docstring == "Override to add custom fields to log record."
-    assert api_map["pythonjsonlogger.core.merge_record_extra"].docstring == "Merge extra attributes from LogRecord into target dict."
-
+    assert (
+        api_map["pythonjsonlogger.core.BaseJsonFormatter"].docstring
+        == "Base class for json log formatters."
+    )
+    assert (
+        api_map["pythonjsonlogger.core.BaseJsonFormatter.add_fields"].docstring
+        == "Override to add custom fields to log record."
+    )
+    assert (
+        api_map["pythonjsonlogger.core.merge_record_extra"].docstring
+        == "Merge extra attributes from LogRecord into target dict."
+    )

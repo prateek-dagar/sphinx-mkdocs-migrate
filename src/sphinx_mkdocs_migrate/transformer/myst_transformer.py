@@ -1,31 +1,41 @@
-import re
 """Source-preserving patch renderer transforming only targeted construct spans with safe recursive fence nesting and disjoint span guarantees."""
+
+import re
 import hashlib
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Tuple
 from ..parsing.markdown_ir import BaseIRNode, NodeKind, DocumentIR
 from ..rules.models import MigrationAction
 from ..analyzer.models import Classification
 
+
 class StalePlanException(Exception):
     """Raised when source span fingerprint does not match the planned action fingerprint."""
+
     pass
+
 
 class OverlappingSpanException(Exception):
     """Raised when transformation plan contains unauthorized overlapping spans that are not parent-owned."""
+
     pass
+
 
 class MySTDocumentTransformer:
     """Transforms targeted DocumentIR spans into valid MyST Markdown using source-preserving patching,
     fingerprint stale-plan validation, safe recursive fence allocation, and disjoint parent ownership checks."""
 
-    def __init__(self, actions: List[MigrationAction], strict_fingerprint: bool = False):
+    def __init__(
+        self, actions: List[MigrationAction], strict_fingerprint: bool = False
+    ):
         self.actions = actions
         self.actions_by_span: Dict[Tuple[int, int], MigrationAction] = {
             (a.start_line, a.end_line): a for a in actions
         }
         self.strict_fingerprint = strict_fingerprint
 
-    def transform_document(self, doc_ir: DocumentIR, raw_source: str) -> Tuple[str, int, int, int, int, int, List[str]]:
+    def transform_document(
+        self, doc_ir: DocumentIR, raw_source: str
+    ) -> Tuple[str, int, int, int, int, int, List[str]]:
         """Source-preserving transformation:
         - Validates source span fingerprints against planned actions.
         - Verifies disjoint span invariants on root replacement spans.
@@ -35,8 +45,12 @@ class MySTDocumentTransformer:
         Returns: (transformed_text, transforms_applied, constructs_preserved, manual_reported, unsupported_reported, stale_actions_count, stale_details)
         """
         # 1. Enforce Disjoint Spans Invariant across all TRANSFORM actions in the plan
-        transform_actions = [a for a in self.actions if a.classification == Classification.TRANSFORM]
-        sorted_transforms = sorted(transform_actions, key=lambda a: (a.start_line, -a.end_line))
+        transform_actions = [
+            a for a in self.actions if a.classification == Classification.TRANSFORM
+        ]
+        sorted_transforms = sorted(
+            transform_actions, key=lambda a: (a.start_line, -a.end_line)
+        )
         for i in range(len(sorted_transforms) - 1):
             curr_a = sorted_transforms[i]
             next_a = sorted_transforms[i + 1]
@@ -72,8 +86,12 @@ class MySTDocumentTransformer:
                 start_l, end_l = node.start_line, node.end_line
                 if 1 <= start_l <= len(raw_lines_stripped):
                     end_idx = min(end_l, len(raw_lines_stripped))
-                    current_span_text = "\n".join(raw_lines_stripped[start_l - 1:end_idx])
-                    current_fp = hashlib.sha256(current_span_text.encode("utf-8")).hexdigest()[:16]
+                    current_span_text = "\n".join(
+                        raw_lines_stripped[start_l - 1 : end_idx]
+                    )
+                    current_fp = hashlib.sha256(
+                        current_span_text.encode("utf-8")
+                    ).hexdigest()[:16]
                     if current_fp != action.source_span_fingerprint:
                         stale_msg = (
                             f"{action.source_file}:{start_l}-{end_l} STALE_PLAN: "
@@ -101,12 +119,22 @@ class MySTDocumentTransformer:
             if text.startswith("---"):
                 parts = text.split("---", 2)
                 if len(parts) >= 3:
-                    sanitized_header = re.sub(r'(\bdate\s*:\s*)(\d{4}-\d{2}-\d{2})\b', r'\1"\2"', parts[1])
+                    sanitized_header = re.sub(
+                        r"(\bdate\s*:\s*)(\d{4}-\d{2}-\d{2})\b", r'\1"\2"', parts[1]
+                    )
                     return "---" + sanitized_header + "---" + parts[2]
             return text
 
         if not spans_to_replace:
-            return _sanitize_fm(raw_source), transforms_applied, constructs_preserved, manual_reported, unsupported_reported, stale_actions_count, stale_details
+            return (
+                _sanitize_fm(raw_source),
+                transforms_applied,
+                constructs_preserved,
+                manual_reported,
+                unsupported_reported,
+                stale_actions_count,
+                stale_details,
+            )
 
         # Double check disjoint spans on root replacement targets
         spans_to_replace.sort(key=lambda s: s[0])
@@ -136,7 +164,15 @@ class MySTDocumentTransformer:
             output_lines.append(lines[current_line_idx - 1])
             current_line_idx += 1
 
-        return "".join(output_lines), transforms_applied, constructs_preserved, manual_reported, unsupported_reported, stale_actions_count, stale_details
+        return (
+            "".join(output_lines),
+            transforms_applied,
+            constructs_preserved,
+            manual_reported,
+            unsupported_reported,
+            stale_actions_count,
+            stale_details,
+        )
 
     def _get_max_child_fence(self, node: BaseIRNode) -> int:
         """Recursively inspects node subtree to find the maximum existing or needed fence delimiter length."""
@@ -167,33 +203,56 @@ class MySTDocumentTransformer:
         if node.kind == NodeKind.ADMONITION:
             adm_type = node.metadata.get("admonition_type", "note")
             title = node.metadata.get("title", "")
-            
+
             action = self.actions_by_span.get((node.start_line, node.end_line))
-            directive = action.target_directive if action and action.target_directive else adm_type
+            directive = (
+                action.target_directive
+                if action and action.target_directive
+                else adm_type
+            )
 
-            if directive in ("note", "warning", "tip", "important", "caution", "danger", "seealso"):
-                header = f"{fence_marker}{{{directive}}} {title}".strip() if title != directive.capitalize() else f"{fence_marker}{{{directive}}}"
+            if directive in (
+                "note",
+                "warning",
+                "tip",
+                "important",
+                "caution",
+                "danger",
+                "seealso",
+            ):
+                header = (
+                    f"{fence_marker}{{{directive}}} {title}".strip()
+                    if title != directive.capitalize()
+                    else f"{fence_marker}{{{directive}}}"
+                )
             else:
-                header = f"{fence_marker}{{admonition}} {title}\n:class: {adm_type}".strip()
+                header = (
+                    f"{fence_marker}{{admonition}} {title}\n:class: {adm_type}".strip()
+                )
 
-            body_parts = [self._render_child_body(child, parent_fence_len=fence_len) for child in node.children]
+            body_parts = [
+                self._render_child_body(child, parent_fence_len=fence_len)
+                for child in node.children
+            ]
             body_text = "\n\n".join(b for b in body_parts if b)
             return f"{header}\n{body_text}\n{fence_marker}"
 
         # 2. Content Tabs (=== "Title")
         elif node.kind == NodeKind.TAB_SET:
             tab_items_rendered: List[str] = []
-            
+
             # Find the maximum fence needed by ANY tab item's content
             max_inner_fence = 0
             for tab_item in node.children:
-                max_inner_fence = max(max_inner_fence, self._get_max_child_fence(tab_item))
+                max_inner_fence = max(
+                    max_inner_fence, self._get_max_child_fence(tab_item)
+                )
 
             # Tab items need (max_inner_fence + 1) or at least 3
             item_fence_len = max(max_inner_fence + 1, 3)
             # Outer tab-set must strictly enclose tab-items: (item_fence_len + 1)
             outer_fence_len = max(item_fence_len + 1, min_fence_len)
-            
+
             outer_fence = "`" * outer_fence_len
             item_fence = "`" * item_fence_len
 
@@ -201,9 +260,14 @@ class MySTDocumentTransformer:
                 tab_title = tab_item.metadata.get("title", "Tab").strip()
                 # Strip all inline backticks from tab title for clean sphinx-design label compatibility
                 tab_title = tab_title.replace("`", "")
-                inner_parts = [self._render_child_body(c, parent_fence_len=item_fence_len) for c in tab_item.children]
+                inner_parts = [
+                    self._render_child_body(c, parent_fence_len=item_fence_len)
+                    for c in tab_item.children
+                ]
                 inner_body = "\n\n".join(b for b in inner_parts if b)
-                item_rendered = f"{item_fence}{{tab-item}} {tab_title}\n{inner_body}\n{item_fence}"
+                item_rendered = (
+                    f"{item_fence}{{tab-item}} {tab_title}\n{inner_body}\n{item_fence}"
+                )
                 tab_items_rendered.append(item_rendered)
 
             all_tabs_text = "\n\n".join(tab_items_rendered)
@@ -215,14 +279,21 @@ class MySTDocumentTransformer:
             is_open = node.metadata.get("open_state", False)
             open_opt = "\n:open:" if is_open else ""
 
-            body_parts = [self._render_child_body(child, parent_fence_len=fence_len) for child in node.children]
+            body_parts = [
+                self._render_child_body(child, parent_fence_len=fence_len)
+                for child in node.children
+            ]
             body_text = "\n\n".join(b for b in body_parts if b)
             return f"{fence_marker}{{dropdown}} {title}{open_opt}\n{body_text}\n{fence_marker}"
 
         # 4. Snippet Includes (--8<-- "path")
         elif node.kind == NodeKind.SNIPPET_INCLUDE:
             filepath = node.metadata.get("filepath", "")
-            directive = "include" if (filepath.endswith(".md") or filepath.endswith(".txt")) else "literalinclude"
+            directive = (
+                "include"
+                if (filepath.endswith(".md") or filepath.endswith(".txt"))
+                else "literalinclude"
+            )
             return f"```{{{directive}}} {filepath}\n```"
 
         # 5. Mermaid Diagrams (```mermaid)
@@ -238,13 +309,13 @@ class MySTDocumentTransformer:
         elif node.kind == NodeKind.API_DIRECTIVE:
             symbol = node.metadata.get("symbol", "")
             raw_text = node.raw_text
-            
+
             explicit_members = []
             is_all_members = False
             for line in raw_text.splitlines():
                 s = line.strip()
                 if s.startswith(":members:"):
-                    m_val = s[len(":members:"):].strip()
+                    m_val = s[len(":members:") :].strip()
                     if m_val:
                         explicit_members = [item for item in m_val.split() if item]
                     else:
@@ -265,7 +336,7 @@ class MySTDocumentTransformer:
                 lines.append(f"    :members: {', '.join(explicit_members)}")
             elif is_all_members:
                 lines.append("    :members:")
-            
+
             if directive in ("autoclass", "autoexception"):
                 lines.append("    :show-inheritance:")
 
@@ -276,8 +347,14 @@ class MySTDocumentTransformer:
 
     def _render_child_body(self, node: BaseIRNode, parent_fence_len: int) -> str:
         """Renders a child node inside a parent container directive with strictly safe fence lengths."""
-        if node.kind in (NodeKind.ADMONITION, NodeKind.TAB_SET, NodeKind.DETAILS_DROPDOWN):
-            return self._render_node_safely(node, min_fence_len=parent_fence_len - 1 if parent_fence_len > 3 else 3)
+        if node.kind in (
+            NodeKind.ADMONITION,
+            NodeKind.TAB_SET,
+            NodeKind.DETAILS_DROPDOWN,
+        ):
+            return self._render_node_safely(
+                node, min_fence_len=parent_fence_len - 1 if parent_fence_len > 3 else 3
+            )
         elif node.kind == NodeKind.CODE_BLOCK:
             info = node.metadata.get("info_string", "")
             code_text = node.raw_text
@@ -294,14 +371,23 @@ class MySTDocumentTransformer:
             title = node.metadata.get("title", node.raw_text)
             return f"{'#' * level} {title}"
         elif node.kind == NodeKind.LIST:
-            items_text = [self._render_child_body(item, parent_fence_len) for item in node.children]
+            items_text = [
+                self._render_child_body(item, parent_fence_len)
+                for item in node.children
+            ]
             return "\n".join(items_text)
         elif node.kind == NodeKind.LIST_ITEM:
-            child_text = "\n".join(self._render_child_body(c, parent_fence_len) for c in node.children) if node.children else node.raw_text
+            child_text = (
+                "\n".join(
+                    self._render_child_body(c, parent_fence_len) for c in node.children
+                )
+                if node.children
+                else node.raw_text
+            )
             lines = child_text.splitlines()
             if not lines:
                 return "- "
             first_line = f"- {lines[0]}"
-            rest_lines = [f"  {l}" for l in lines[1:]]
+            rest_lines = [f"  {line_item}" for line_item in lines[1:]]
             return "\n".join([first_line] + rest_lines)
         return node.raw_text

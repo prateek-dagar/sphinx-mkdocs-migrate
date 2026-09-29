@@ -1,8 +1,10 @@
 """Markdown parser entrypoint wrapping the markdown-it token adapter."""
+
 from pathlib import Path
 from typing import Optional
 from .markdown_ir import DocumentIR
 from .markdown_it_adapter import MarkdownIRBuilder
+
 
 class MarkdownParser:
     """Parses markdown documents into destination-neutral DocumentIR trees via markdown-it-py."""
