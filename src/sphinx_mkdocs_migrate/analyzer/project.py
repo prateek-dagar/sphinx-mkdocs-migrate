@@ -98,7 +98,9 @@ class ProjectAnalyzer:
             flows[rel_path] = page.flow
 
             for elem in page.flow.elements:
-                if elem.element_type == DocumentElementType.API_REQUEST:
+                if elem.element_type == DocumentElementType.API_REQUEST and isinstance(
+                    elem.content, ApiDocumentationRequest
+                ):
                     api_requests.append(elem.content)
 
             logical_route = (

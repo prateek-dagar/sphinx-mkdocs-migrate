@@ -1373,7 +1373,7 @@ class MigrationPlanner:
                             {
                                 "scheme": p.scheme.value
                                 if hasattr(p.scheme, "value")
-                                else str(p.scheme)
+                                else p.scheme
                             }
                             if p.scheme
                             else {}
@@ -1508,7 +1508,7 @@ class MigrationPlanner:
             conf_opts["autosummary_generate"] = False
 
         sphinx_config_proposal = ConfigMigrationProposal(
-            project_name=site_name,
+            project_name=site_name or self.project_root.name,
             theme=theme_proposal,
             extensions_to_add=all_ext_names,
             myst_enable_extensions=sorted(list(myst_enabled)),

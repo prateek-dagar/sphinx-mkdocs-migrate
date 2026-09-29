@@ -27,6 +27,15 @@ class HtmlFlowRole(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+def _get_classes(tag: Tag) -> List[str]:
+    cls = tag.get("class")
+    if isinstance(cls, list):
+        return [c for c in cls]
+    elif isinstance(cls, str):
+        return cls.split()
+    return []
+
+
 class HtmlFlowElement(BaseModel):
     """An ordered semantic element extracted from the rendered HTML DOM."""
 
@@ -115,7 +124,7 @@ class HtmlFlowParser:
                     if not isinstance(child, Tag):
                         continue
 
-                    classes = child.get("class", [])
+                    classes = _get_classes(child)
 
                     # Prose paragraphs (module docstring)
                     if child.name == "p":
@@ -184,8 +193,9 @@ class HtmlFlowParser:
                         if child_objs:
                             for obj in child_objs:
                                 h = obj.find(["h1", "h2", "h3", "h4", "h5", "h6"])
-                                hid = h.get("id") if h else None
-                                obj_classes = obj.get("class", [])
+                                hid_val = h.get("id") if isinstance(h, Tag) else None
+                                hid = str(hid_val) if hid_val is not None else None
+                                obj_classes = _get_classes(obj)
 
                                 if "doc-class" in obj_classes:
                                     role = HtmlFlowRole.API_CLASS
@@ -253,7 +263,7 @@ class HtmlFlowParser:
                 continue
 
             tag = child.name
-            classes = child.get("class", [])
+            classes = _get_classes(child)
 
             if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
                 lvl = int(tag[1])

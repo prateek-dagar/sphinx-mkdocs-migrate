@@ -469,7 +469,7 @@ class MarkdownIRBuilder:
         while j < m:
             child = inline_children[j]
             if child.type == "link_open":
-                href = child.attrs.get("href", "")
+                href = str(child.attrs.get("href", ""))
                 link_text = ""
                 if j + 1 < m and inline_children[j + 1].type == "text":
                     link_text = inline_children[j + 1].content

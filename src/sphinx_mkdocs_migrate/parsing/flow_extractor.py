@@ -30,6 +30,7 @@ from .doc_ir import (
     DocumentationPage,
     DocumentationLink,
     AssetReference,
+    DocumentElementContent,
 )
 from .markdown_ir import BaseIRNode, NodeKind
 from .markdown import MarkdownParser
@@ -122,7 +123,9 @@ class DocumentFlowExtractor:
             level = node.metadata.get("level", 1)
             text = node.metadata.get("text", node.raw_text).strip()
             anchor_id = node.metadata.get("id")
-            content = HeadingElement(level=level, text=text, anchor_id=anchor_id)
+            content: DocumentElementContent = HeadingElement(
+                level=level, text=text, anchor_id=anchor_id
+            )
             return (
                 DocumentElement(
                     construct_id=construct_id,
