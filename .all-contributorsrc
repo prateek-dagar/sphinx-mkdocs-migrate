@@ -18,9 +18,12 @@
         "code",
         "doc",
         "maintenance",
-        "design"
+        "design",
+        "test"
       ]
     }
   ],
-  "contributorsPerLine": 7
+  "contributorsPerLine": 7,
+  "commitType": "docs",
+  "commitConvention": "angular"
 }
