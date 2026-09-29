@@ -74,6 +74,7 @@ class MkDocsConfigAnalyzer:
         theme_icon = None
         theme_favicon = None
         theme_language = None
+        theme_custom_dir = None
         theme_font = None
         theme_palette: List[ThemePalette] = []
 
@@ -91,6 +92,7 @@ class MkDocsConfigAnalyzer:
             )
             theme_favicon = theme_data.get("favicon")
             theme_language = theme_data.get("language")
+            theme_custom_dir = theme_data.get("custom_dir")
 
             # Palette parsing (can be a dict or list of dicts in Material for MkDocs)
             pal = theme_data.get("palette")
@@ -185,6 +187,17 @@ class MkDocsConfigAnalyzer:
             extra_js = [extra_js]
         extra = data.get("extra", {}) if isinstance(data.get("extra"), dict) else {}
 
+        raw_exclude = data.get("exclude_docs", [])
+        if isinstance(raw_exclude, str):
+            exclude_docs = [s.strip() for s in raw_exclude.splitlines() if s.strip()]
+        elif isinstance(raw_exclude, list):
+            exclude_docs = [str(s) for s in raw_exclude]
+        else:
+            exclude_docs = []
+
+        raw_use_dir = data.get("use_directory_urls")
+        use_dir_urls = bool(raw_use_dir) if raw_use_dir is not None else None
+
         return ConfigAnalysis(
             site_name=site_name,
             site_description=data.get("site_description"),
@@ -200,6 +213,7 @@ class MkDocsConfigAnalyzer:
             theme_icon=theme_icon,
             theme_favicon=theme_favicon,
             theme_language=theme_language,
+            theme_custom_dir=theme_custom_dir,
             theme_palette=theme_palette,
             theme_font=theme_font,
             theme_features=features,
@@ -211,6 +225,8 @@ class MkDocsConfigAnalyzer:
             extra_css=extra_css,
             extra_javascript=extra_js,
             extra=extra,
+            exclude_docs=exclude_docs,
+            use_directory_urls=use_dir_urls,
             raw_config_keys=list(data.keys()) if isinstance(data, dict) else [],
         )
 

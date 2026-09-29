@@ -42,7 +42,8 @@ from ..analyzer.mkdocs import detect_obsolete_generator_scripts
 from ..analyzer.project import ProjectAnalyzer
 from ..rules.engine import MigrationRuleEngine
 from ..rules.models import MigrationAction
-from ..parsing.markdown import MarkdownParser
+from ..parsing.markdown import MarkdownParser, python_markdown_slug, myst_default_slug
+from ..parsing.markdown_ir import NodeKind
 from ..parsing.flow_extractor import DocumentFlowExtractor
 from ..parsing.html_flow_parser import HtmlFlowParser, HtmlFlowRole
 from ..parsing.doc_ir import (
@@ -413,6 +414,101 @@ class MigrationPlanner:
                     ),
                 )
             )
+
+        # Plan orphan metadata injection for documents omitted from navigation
+        orphan_docs_set: Set[str] = set()
+        if report.navigation_analysis and report.navigation_analysis.orphan_documents:
+            orphan_docs_set.update(report.navigation_analysis.orphan_documents)
+
+        for md_file in md_files:
+            rel_file = md_file.relative_to(self.project_root).as_posix()
+            if rel_file in orphan_docs_set or any(
+                rel_file.endswith(o) for o in orphan_docs_set
+            ):
+                all_actions.append(
+                    MigrationAction(
+                        action_id=f"act_{action_counter:04d}",
+                        rule_id="rule_orphan_metadata",
+                        source_file=rel_file,
+                        start_line=1,
+                        end_line=1,
+                        classification=Classification.TRANSFORM,
+                        source_kind=NodeKind.DOCUMENT,
+                        target_directive="orphan",
+                        description="Inject orphan: true metadata into frontmatter for document omitted from navigation",
+                    )
+                )
+                action_counter += 1
+
+        # Collect harmonized heading anchors across all documents where Python-Markdown slug diverges from MyST
+        harmonized_anchor_slugs: Set[str] = set()
+        heading_actions: List[MigrationAction] = []
+
+        for md_file in md_files:
+            rel_file = md_file.relative_to(self.project_root).as_posix()
+            try:
+                raw_text = md_file.read_text(encoding="utf-8")
+                doc_ir = self.parser.parse_text(raw_text, file_path=rel_file)
+                for node in doc_ir.walk():
+                    if node.kind == NodeKind.HEADING:
+                        title = node.metadata.get("title", "")
+                        if not title and node.raw_text:
+                            m = re.match(r"^#{1,6}\s+(.+?)\s*$", node.raw_text.strip())
+                            if m:
+                                title = m.group(1)
+                        if title:
+                            pm_slug = python_markdown_slug(title)
+                            myst_slug = myst_default_slug(title)
+                            if pm_slug and pm_slug != myst_slug:
+                                harmonized_anchor_slugs.add(pm_slug)
+                                heading_actions.append(
+                                    MigrationAction(
+                                        action_id=f"act_{action_counter:04d}",
+                                        rule_id="rule_heading_anchor",
+                                        source_file=rel_file,
+                                        start_line=node.start_line,
+                                        end_line=node.end_line,
+                                        classification=Classification.TRANSFORM,
+                                        source_kind=NodeKind.HEADING,
+                                        target_directive=pm_slug,
+                                        description=f"Add MyST target anchor ({pm_slug})= for Python-Markdown slug compatibility",
+                                    )
+                                )
+                                action_counter += 1
+            except Exception:
+                pass
+
+        all_actions.extend(heading_actions)
+
+        # Plan cross-reference link harmonization targeting harmonized anchor slugs
+        if harmonized_anchor_slugs:
+            for md_file in md_files:
+                rel_file = md_file.relative_to(self.project_root).as_posix()
+                try:
+                    raw_text = md_file.read_text(encoding="utf-8")
+                    doc_ir = self.parser.parse_text(raw_text, file_path=rel_file)
+                    for node in doc_ir.walk():
+                        if node.kind == NodeKind.LINK_REF:
+                            href = node.metadata.get("href", "")
+                            if "#" in href:
+                                anchor = href.split("#", 1)[1]
+                                if anchor in harmonized_anchor_slugs:
+                                    all_actions.append(
+                                        MigrationAction(
+                                            action_id=f"act_{action_counter:04d}",
+                                            rule_id="rule_anchor_link",
+                                            source_file=rel_file,
+                                            start_line=node.start_line,
+                                            end_line=node.end_line,
+                                            classification=Classification.TRANSFORM,
+                                            source_kind=NodeKind.LINK_REF,
+                                            target_directive=anchor,
+                                            description=f"Harmonize cross-reference link anchor to ({anchor})",
+                                        )
+                                    )
+                                    action_counter += 1
+                except Exception:
+                    pass
 
         # 3. Categorize Summary & Collect Requirements with Source Tracking
         summary = PlanActionSummary(total_actions=len(all_actions))
@@ -1318,6 +1414,7 @@ class MigrationPlanner:
             CONFIG_FIELD_MAP = {
                 "copyright": "copyright",
                 "site_author": "author",
+                "site_url": "html_baseurl",
                 "theme_language": "language",
                 "theme_logo": "html_logo",
                 "theme_favicon": "html_favicon",
@@ -1361,10 +1458,21 @@ class MigrationPlanner:
                     if val:
                         theme_opts[opt_key] = val
 
-                if cfg.repo_url and "github.com/" in cfg.repo_url:
+                if cfg.repo_name:
+                    theme_opts["repo_name"] = cfg.repo_name
+                elif cfg.repo_url and "github.com/" in cfg.repo_url:
                     theme_opts["repo_name"] = cfg.repo_url.rstrip("/").split(
                         "github.com/"
                     )[1]
+
+                if cfg.theme_font:
+                    font_dict: Dict[str, str] = {}
+                    if cfg.theme_font.text:
+                        font_dict["text"] = cfg.theme_font.text
+                    if cfg.theme_font.code:
+                        font_dict["code"] = cfg.theme_font.code
+                    if font_dict:
+                        theme_opts["font"] = font_dict
 
                 # Material palette mapping
                 immaterial_palettes = [
@@ -1399,14 +1507,27 @@ class MigrationPlanner:
                 ]
                 if immaterial_palettes:
                     theme_opts["palette"] = immaterial_palettes
+
+                # Social icons mapping
+                if (
+                    cfg.extra
+                    and "social" in cfg.extra
+                    and isinstance(cfg.extra["social"], list)
+                ):
+                    theme_opts["social"] = cfg.extra["social"]
+
                 # Version selector mapping
                 if cfg.extra and "version" in cfg.extra:
                     theme_opts["version_dropdown"] = True
+                    theme_opts["version_json"] = "versions.json"
                     v_val = cfg.extra["version"]
+                    ver_str = "latest"
                     if isinstance(v_val, dict) and "default" in v_val:
-                        conf_opts["version"] = str(v_val["default"])
+                        ver_str = str(v_val["default"])
+                        conf_opts["version"] = ver_str
                     elif isinstance(v_val, str):
-                        conf_opts["version"] = v_val
+                        ver_str = v_val
+                        conf_opts["version"] = ver_str
 
                 theme_opts["globaltoc_collapse"] = False
 
@@ -1466,6 +1587,30 @@ class MigrationPlanner:
 
             if theme_opts:
                 conf_opts["html_theme_options"] = theme_opts
+
+            if cfg.theme_custom_dir:
+                conf_opts.setdefault("templates_path", ["_templates"]).append(
+                    cfg.theme_custom_dir
+                )
+
+            exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+            if cfg.exclude_docs:
+                exclude_patterns.extend(cfg.exclude_docs)
+            conf_opts["exclude_patterns"] = sorted(list(set(exclude_patterns)))
+
+            if cfg.use_directory_urls is False:
+                conf_opts["html_file_suffix"] = ".html"
+                conf_opts["html_link_suffix"] = ".html"
+
+            html_context: Dict[str, Any] = {}
+            if cfg.site_description:
+                html_context["description"] = cfg.site_description
+            if cfg.extra:
+                for k, v in cfg.extra.items():
+                    if k not in ("social", "version"):
+                        html_context[k] = v
+            if html_context:
+                conf_opts["html_context"] = html_context
 
         # Check mkdocstrings options to set native Sphinx conf.py properties
         if report.mkdocs_config:
@@ -1598,8 +1743,19 @@ class MigrationPlanner:
             generated_targets=gen_targets,
         )
 
+        orphan_docs = (
+            list(report.navigation_analysis.orphan_documents)
+            if (
+                report.navigation_analysis
+                and report.navigation_analysis.orphan_documents
+            )
+            else []
+        )
         nav_plan = NavigationPlan(
-            root_toctrees=root_toctrees, sub_toctrees={}, hidden_routes=[]
+            root_toctrees=root_toctrees,
+            sub_toctrees={},
+            hidden_routes=orphan_docs,
+            orphan_documents=orphan_docs,
         )
 
         gen_pipelines_plan: List[GeneratedPipelinePlan] = []

@@ -5,7 +5,11 @@ import hashlib
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Set
+from ..constants import (
+    DEFAULT_ROOT_DOC,
+    ROOT_DOC_CANDIDATE_STEMS,
+)
 from ..planner.models import MigrationPlan
 from ..planner.conf_builder import build_conf_py
 from ..planner.toctree import build_semantic_toctree
@@ -24,7 +28,11 @@ from ..analyzer.ci import (
     DEFAULT_SETUP_UV_TAG,
     DEFAULT_SETUP_UV_SHA,
 )
-from ..parsing.markdown import MarkdownParser
+from ..parsing.markdown import (
+    MarkdownParser,
+    python_markdown_slug,
+    myst_default_slug,
+)
 from .models import (
     ProjectTransformationReport,
     DocumentTransformationResult,
@@ -163,6 +171,45 @@ class TransformationEngine:
             dry_run=not write_to_disk,
         )
 
+    def _is_root_document(self, file_path: Path, docs_dir: Path) -> bool:
+        """Determines whether a file path represents the root documentation landing page."""
+        try:
+            rel = file_path.relative_to(docs_dir)
+            if len(rel.parts) != 1:
+                return False
+            configured_root = (
+                self.plan.proposed_sphinx_config.root_doc
+                if (
+                    self.plan.proposed_sphinx_config
+                    and hasattr(self.plan.proposed_sphinx_config, "root_doc")
+                    and self.plan.proposed_sphinx_config.root_doc
+                )
+                else DEFAULT_ROOT_DOC
+            )
+            return rel.stem.lower() in (
+                configured_root.lower(),
+                *ROOT_DOC_CANDIDATE_STEMS,
+            )
+        except ValueError:
+            return False
+
+    def _get_root_document_path(self, docs_dir: Path) -> Path:
+        """Returns the canonical path for the root documentation landing page."""
+        for stem in ROOT_DOC_CANDIDATE_STEMS:
+            candidate = docs_dir / f"{stem}.md"
+            if candidate.exists():
+                return candidate
+        configured_root = (
+            self.plan.proposed_sphinx_config.root_doc
+            if (
+                self.plan.proposed_sphinx_config
+                and hasattr(self.plan.proposed_sphinx_config, "root_doc")
+                and self.plan.proposed_sphinx_config.root_doc
+            )
+            else DEFAULT_ROOT_DOC
+        )
+        return docs_dir / f"{configured_root}.md"
+
     def _transform_markdown_file(
         self,
         md_file: Path,
@@ -171,6 +218,8 @@ class TransformationEngine:
         nav_entries: List[NavigationItem],
         all_md_files: List[Path],
         autorefs_targets: Dict[str, Path],
+        is_orphan: bool = False,
+        harmonized_anchors: Optional[Set[str]] = None,
     ) -> Tuple[DocumentTransformationResult, bool]:
         """Transforms a single Markdown file applying MyST actions, autorefs, and frontmatter sanitization."""
         source_file_rel = md_file.relative_to(self.project_root).as_posix()
@@ -208,10 +257,10 @@ class TransformationEngine:
                     r"(:\s*)(\d{4}-\d{2}-\d{2})\b", r'\1"\2"', parts[1]
                 )
                 transformed_content = "---" + sanitized_header + "---" + parts[2]
-            # Only the documentation root owns the site-level toctree.  Nested
-            # ``index.md`` files are section/package landing pages and must keep
-            # their own child toctrees (for example generated API modules).
-        if md_file == docs_dir / "index.md":
+
+        # Only the documentation root owns the site-level toctree. Nested
+        # section landing pages keep their own child toctrees.
+        if self._is_root_document(md_file, docs_dir):
             toctree_block = self._generate_semantic_toctree(
                 nav_entries, all_md_files, docs_dir
             )
@@ -227,7 +276,21 @@ class TransformationEngine:
                         transformed_content.rstrip() + "\n\n" + toctree_block + "\n"
                     )
 
+        # Inject :orphan: metadata if file is not included in navigation
+        if is_orphan:
+            transformed_content = self._inject_orphan_metadata(transformed_content)
+
+        # Harmonize heading anchors for Python-Markdown slug compatibility
+        transformed_content = self._harmonize_heading_anchors(transformed_content)
+        if harmonized_anchors:
+            transformed_content, link_changes = self._harmonize_anchor_links(
+                transformed_content, harmonized_anchors
+            )
+            applied_cnt += link_changes
+
         is_modified = orig_content != transformed_content
+        if is_modified and applied_cnt == 0 and manual_cnt == 0:
+            applied_cnt = 1
         if manual_cnt > 0 and applied_cnt == 0:
             doc_status = TransformationStatus.MANUAL_REQUIRED
         elif is_modified:
@@ -279,9 +342,42 @@ class TransformationEngine:
         documents_changed = 0
         files_written = 0
 
+        orphan_files: Set[str] = {
+            act.source_file
+            for act in self.plan.document_actions
+            if act.rule_id == "rule_orphan_metadata"
+        }
+        if self.plan.navigation_analysis:
+            orphan_files.update(self.plan.navigation_analysis.orphan_documents)
+            if self.plan.navigation_analysis.has_nav:
+                nav_targets = self._collect_nav_targets(
+                    self.plan.navigation_analysis.tree, docs_dir
+                )
+                for md_f in all_md_files:
+                    if not self._is_root_document(md_f, docs_dir):
+                        rel_doc = md_f.relative_to(docs_dir).with_suffix("").as_posix()
+                        if rel_doc not in nav_targets:
+                            orphan_files.add(md_f.name)
+                            orphan_files.add(rel_doc)
+        if self.plan.documentation_plan and self.plan.documentation_plan.navigation:
+            orphan_files.update(
+                self.plan.documentation_plan.navigation.orphan_documents
+            )
+            orphan_files.update(self.plan.documentation_plan.navigation.hidden_routes)
+        harmonized_anchors: Set[str] = {
+            act.target_directive
+            for act in self.plan.document_actions
+            if act.rule_id == "rule_heading_anchor" and act.target_directive
+        }
+
         for md_file in all_md_files:
             source_file_rel = md_file.relative_to(self.project_root).as_posix()
             actions = actions_by_file.get(source_file_rel, [])
+            is_orphan = (
+                source_file_rel in orphan_files
+                or md_file.name in orphan_files
+                or any(source_file_rel.endswith(o) for o in orphan_files)
+            )
             result, is_mod = self._transform_markdown_file(
                 md_file=md_file,
                 actions=actions,
@@ -289,6 +385,8 @@ class TransformationEngine:
                 nav_entries=nav_entries,
                 all_md_files=all_md_files,
                 autorefs_targets=autorefs_targets,
+                is_orphan=is_orphan,
+                harmonized_anchors=harmonized_anchors,
             )
             doc_results.append(result)
             if is_mod:
@@ -308,21 +406,16 @@ class TransformationEngine:
         doc_results: List[DocumentTransformationResult],
         write_to_disk: bool,
     ) -> Tuple[Dict[str, str], List[DocumentTransformationResult], int, int]:
-        """Ensures a root index.md exists with site-level semantic toctree if needed."""
+        """Ensures a root landing document exists with site-level semantic toctree if needed."""
         generated: Dict[str, str] = {}
         added_results: List[DocumentTransformationResult] = []
         files_written = 0
         documents_changed = 0
 
-        root_index_path = docs_dir / "index.md"
-        root_index_rel = f"{docs_dir_name}/index.md" if docs_dir_name else "index.md"
+        root_index_path = self._get_root_document_path(docs_dir)
+        root_index_rel = root_index_path.relative_to(self.project_root).as_posix()
         has_root_index = any(
-            Path(doc.target_file).as_posix()
-            in (
-                Path(root_index_rel).as_posix(),
-                "index.md",
-                f"{docs_dir_name}/index.md",
-            )
+            self._is_root_document(self.project_root / doc.target_file, docs_dir)
             for doc in doc_results
         )
 
@@ -533,6 +626,132 @@ class TransformationEngine:
             project_root=self.project_root,
             generated_targets=generated_targets,
         )
+
+    def _collect_nav_targets(
+        self, nav_entries: List[NavigationItem], docs_dir: Path
+    ) -> Set[str]:
+        """Collect relative docnames (without extension) included in the navigation tree."""
+        targets: Set[str] = set()
+        docs_prefix = docs_dir.relative_to(self.project_root)
+        for proposal in self.plan.generated_documents:
+            try:
+                rel = Path(proposal.target_path).relative_to(docs_prefix)
+                targets.add(rel.with_suffix("").as_posix())
+            except ValueError:
+                pass
+
+        def _walk(items: List[NavigationItem]):
+            for item in items:
+                if item.path:
+                    clean = item.path.strip("/").replace("\\", "/")
+                    if clean.endswith(".md"):
+                        clean = clean[:-3]
+                    targets.add(clean)
+                    for candidate_stem in ROOT_DOC_CANDIDATE_STEMS:
+                        if (docs_dir / clean / f"{candidate_stem}.md").exists():
+                            targets.add(f"{clean}/{candidate_stem}")
+                if item.children:
+                    _walk(item.children)
+
+        _walk(nav_entries)
+        return targets
+
+    @staticmethod
+    def _inject_orphan_metadata(content: str) -> str:
+        """Injects orphan: true into frontmatter if not already present."""
+        if (
+            "orphan: true" in content
+            or "orphan: True" in content
+            or ":orphan:" in content
+        ):
+            return content
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                return "---\norphan: true\n" + parts[1].lstrip("\n") + "---" + parts[2]
+        return "---\norphan: true\n---\n\n" + content
+
+    @staticmethod
+    def _python_markdown_slug(title: str) -> str:
+        """Compute heading slug matching Python-Markdown's toc extension."""
+        return python_markdown_slug(title)
+
+    @staticmethod
+    def _myst_default_slug(title: str) -> str:
+        """Compute heading slug matching MyST Parser default slugify."""
+        return myst_default_slug(title)
+
+    def _harmonize_heading_anchors(self, content: str) -> str:
+        """Prepend MyST anchor targets for headings whose Python-Markdown slug differs from MyST slug."""
+        lines = content.splitlines(keepends=True)
+        output: List[str] = []
+        in_code_block = False
+        code_fence_char = ""
+        code_fence_len = 0
+
+        for line in lines:
+            stripped = line.strip()
+            fence_match = re.match(r"^(`{3,}|~{3,})", stripped)
+            if fence_match:
+                fence = fence_match.group(1)
+                if not in_code_block:
+                    in_code_block = True
+                    code_fence_char = fence[0]
+                    code_fence_len = len(fence)
+                elif fence[0] == code_fence_char and len(fence) >= code_fence_len:
+                    in_code_block = False
+                    code_fence_char = ""
+                    code_fence_len = 0
+                output.append(line)
+                continue
+
+            if not in_code_block:
+                heading_match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
+                if heading_match:
+                    title = heading_match.group(2)
+                    pm_slug = self._python_markdown_slug(title)
+                    myst_slug = self._myst_default_slug(title)
+                    if pm_slug and pm_slug != myst_slug:
+                        anchor_target = f"({pm_slug})="
+                        has_anchor = False
+                        for prev_i in range(len(output) - 1, -1, -1):
+                            p_line = output[prev_i].strip()
+                            if not p_line:
+                                continue
+                            if p_line == anchor_target:
+                                has_anchor = True
+                            break
+                        if not has_anchor:
+                            output.append(f"{anchor_target}\n")
+
+            output.append(line)
+        return "".join(output)
+
+    @staticmethod
+    def _harmonize_anchor_links(
+        content: str, harmonized_anchors: Set[str]
+    ) -> Tuple[str, int]:
+        """Rewrites cross-document links targeting harmonized anchor slugs to direct MyST target references."""
+        if not harmonized_anchors:
+            return content, 0
+
+        pattern = re.compile(
+            r"\[(?P<label>[^\]\n]+)\]\((?P<path>[^)#\s]+\.md)?#(?P<anchor>[a-zA-Z0-9_\-]+)\)"
+        )
+        changes = 0
+
+        def replace(match: re.Match) -> str:
+            nonlocal changes
+            path = match.group("path")
+            anchor = match.group("anchor")
+            if path and (path.startswith("http://") or path.startswith("https://")):
+                return match.group(0)
+            if anchor in harmonized_anchors:
+                changes += 1
+                return f"[{match.group('label')}]({anchor})"
+            return match.group(0)
+
+        return pattern.sub(replace, content), changes
 
     def _generate_conf_py(self) -> str:
         """Generates a clean Sphinx conf.py based strictly on MigrationPlan requirements."""

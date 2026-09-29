@@ -303,6 +303,7 @@ class MarkdownIRBuilder:
         self, text: str, line_map: List[int]
     ) -> List[BaseIRNode]:
         tokens = self.md_parser.parse(text)
+        chunk_lines = text.splitlines()
         nodes: List[BaseIRNode] = []
         stack: List[BaseIRNode] = []
         i = 0
@@ -345,11 +346,20 @@ class MarkdownIRBuilder:
                 title = ""
                 if i + 1 < n and tokens[i + 1].type == "inline":
                     title = tokens[i + 1].content.strip()
+                start_idx = token.map[0] if token.map else 0
+                end_idx = token.map[1] if token.map else start_idx + 1
+                raw_heading = (
+                    "\n".join(chunk_lines[start_idx:end_idx]).strip()
+                    if start_idx < len(chunk_lines)
+                    else ""
+                )
+                if not raw_heading.startswith("#"):
+                    raw_heading = f"{'#' * level} {title}"
                 head_node = BaseIRNode(
                     kind=NodeKind.HEADING,
                     start_line=start_l,
                     end_line=end_l,
-                    raw_text=title,
+                    raw_text=raw_heading,
                     metadata={"level": level, "title": title},
                 )
                 if stack:

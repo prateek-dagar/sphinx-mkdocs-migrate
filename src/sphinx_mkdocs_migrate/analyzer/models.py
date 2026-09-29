@@ -185,9 +185,12 @@ class ConfigAnalysis(BaseModel):
     markdown_extensions: List[str] = Field(default_factory=list)
     nav_raw: Optional[Any] = None
     custom_hooks: List[str] = Field(default_factory=list)
+    theme_custom_dir: Optional[str] = None
     extra_css: List[str] = Field(default_factory=list)
     extra_javascript: List[str] = Field(default_factory=list)
     extra: Dict[str, Any] = Field(default_factory=dict)
+    exclude_docs: List[str] = Field(default_factory=list)
+    use_directory_urls: Optional[bool] = None
     raw_config_keys: List[str] = Field(default_factory=list)
 
 

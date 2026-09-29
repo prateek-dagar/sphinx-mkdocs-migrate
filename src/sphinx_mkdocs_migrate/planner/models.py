@@ -195,6 +195,7 @@ class NavigationPlan(BaseModel):
     root_toctrees: List[str] = Field(default_factory=list)
     sub_toctrees: Dict[str, List[str]] = Field(default_factory=dict)
     hidden_routes: List[str] = Field(default_factory=list)
+    orphan_documents: List[str] = Field(default_factory=list)
 
 
 class GeneratedPipelinePlan(BaseModel):

@@ -341,3 +341,135 @@ def test_clean_obsolete_mkdocs_generator_scripts(tmp_path):
     assert "scripts/gen_ref_nav.py" in report.cleaned_files
     assert not gen_script.exists()
     assert not script_dir.exists()  # Empty directory cleaned up
+
+
+def test_inject_orphan_metadata():
+    """Verify orphan: true frontmatter injection for standalone documents."""
+    # Case 1: No frontmatter
+    doc_raw = "# Style Guide\n\nSome text here.\n"
+    res1 = TransformationEngine._inject_orphan_metadata(doc_raw)
+    assert res1.startswith("---\norphan: true\n---\n\n# Style Guide")
+
+    # Case 2: Existing frontmatter
+    doc_fm = "---\ntitle: Style Guide\n---\n\n# Style Guide\n"
+    res2 = TransformationEngine._inject_orphan_metadata(doc_fm)
+    assert res2.startswith("---\norphan: true\ntitle: Style Guide\n---\n")
+
+    # Case 3: Already has orphan: true
+    doc_already = "---\norphan: true\ntitle: Style Guide\n---\n\n# Style Guide\n"
+    res3 = TransformationEngine._inject_orphan_metadata(doc_already)
+    assert res3 == doc_already
+
+
+def test_harmonize_heading_anchors():
+    """Verify heading anchor generation for Python-Markdown slug compatibility."""
+    engine = TransformationEngine(
+        MigrationPlan(
+            project_root=".",
+            metadata=MigrationPlanMetadata(generated_at="2026-09-29T00:00:00Z"),
+        )
+    )
+
+    # Case 1: Heading with slash / punctuation
+    content = "## Request / Trace IDs\n\nSome content\n"
+    harmonized = engine._harmonize_heading_anchors(content)
+    assert "(request-trace-ids)=\n## Request / Trace IDs\n" in harmonized
+
+    # Case 2: Standard heading with no slug divergence
+    content_std = "## Standard Heading\n\nSome content\n"
+    assert engine._harmonize_heading_anchors(content_std) == content_std
+
+    # Case 3: Idempotence (anchor already present)
+    content_already = "(request-trace-ids)=\n## Request / Trace IDs\n\nSome content\n"
+    assert engine._harmonize_heading_anchors(content_already) == content_already
+
+    # Case 4: Code block with comments not affected
+    content_code = "```python\n# Request / Trace IDs\ncode = 1\n```\n"
+    assert engine._harmonize_heading_anchors(content_code) == content_code
+
+    # Case 5: Link rewriting to harmonized target
+    link_content = "See [Cookbook: Request / Trace IDs](cookbook.md#request-trace-ids) for an example."
+    rewritten, changes = engine._harmonize_anchor_links(
+        link_content, {"request-trace-ids"}
+    )
+    assert changes == 1
+    assert (
+        rewritten
+        == "See [Cookbook: Request / Trace IDs](request-trace-ids) for an example."
+    )
+
+
+def test_unlisted_documents_marked_as_orphan(tmp_path: Path):
+    """Verify that documents in docs/ not listed in nav are marked as orphan."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "index.md").write_text("# Home\n", encoding="utf-8")
+    (docs_dir / "guide.md").write_text("# Guide\n", encoding="utf-8")
+    (docs_dir / "orphan_page.md").write_text("# Unlisted Page\n", encoding="utf-8")
+
+    from sphinx_mkdocs_migrate.analyzer.models import NavigationAnalysis, NavigationItem
+
+    plan = MigrationPlan(
+        project_root=str(tmp_path),
+        source_mkdocs_config=ConfigAnalysis(site_name="Test"),
+        navigation_analysis=NavigationAnalysis(
+            has_nav=True,
+            orphan_documents=["orphan_page.md"],
+            tree=[
+                NavigationItem(title="Home", path="index.md"),
+                NavigationItem(title="Guide", path="guide.md"),
+            ],
+        ),
+        metadata=MigrationPlanMetadata(generated_at="2026-09-29T00:00:00Z"),
+    )
+
+    engine = TransformationEngine(plan)
+    engine.execute(write_to_disk=True)
+
+    # index.md is root document, so never marked as orphan
+    index_text = (docs_dir / "index.md").read_text(encoding="utf-8")
+    assert "orphan: true" not in index_text
+
+    # guide.md is in nav, so no orphan
+    guide_text = (docs_dir / "guide.md").read_text(encoding="utf-8")
+    assert "orphan: true" not in guide_text
+
+    # orphan_page.md is NOT in nav, so orphan: true must be injected
+    orphan_text = (docs_dir / "orphan_page.md").read_text(encoding="utf-8")
+    assert "orphan: true" in orphan_text
+
+
+def test_root_document_resolution_and_orphan_handling(tmp_path: Path):
+    """Verify that README.md as root document is correctly identified and not marked as orphan."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "README.md").write_text("# Root Readme\n", encoding="utf-8")
+    (docs_dir / "tutorial.md").write_text("# Tutorial\n", encoding="utf-8")
+    (docs_dir / "extra.md").write_text("# Extra\n", encoding="utf-8")
+
+    from sphinx_mkdocs_migrate.analyzer.models import NavigationAnalysis, NavigationItem
+
+    plan = MigrationPlan(
+        project_root=str(tmp_path),
+        source_mkdocs_config=ConfigAnalysis(site_name="Test"),
+        navigation_analysis=NavigationAnalysis(
+            has_nav=True,
+            tree=[
+                NavigationItem(title="Home", path="README.md"),
+                NavigationItem(title="Tutorial", path="tutorial.md"),
+            ],
+        ),
+        metadata=MigrationPlanMetadata(generated_at="2026-09-29T00:00:00Z"),
+    )
+
+    engine = TransformationEngine(plan)
+    engine.execute(write_to_disk=True)
+
+    readme_text = (docs_dir / "README.md").read_text(encoding="utf-8")
+    assert "orphan: true" not in readme_text
+
+    tutorial_text = (docs_dir / "tutorial.md").read_text(encoding="utf-8")
+    assert "orphan: true" not in tutorial_text
+
+    extra_text = (docs_dir / "extra.md").read_text(encoding="utf-8")
+    assert "orphan: true" in extra_text

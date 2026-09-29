@@ -354,6 +354,15 @@ class MySTDocumentTransformer:
             rst_block = "\n".join(lines)
             return f"```{{eval-rst}}\n{rst_block}\n```"
 
+        elif node.kind == NodeKind.HEADING:
+            level = node.metadata.get("level", 1)
+            title = node.metadata.get("title", "")
+            action = self.actions_by_span.get((node.start_line, node.end_line))
+            heading_text = f"{'#' * level} {title}" if title else node.raw_text
+            if action and action.target_directive:
+                return f"({action.target_directive})=\n{heading_text}"
+            return heading_text
+
         return node.raw_text
 
     def _render_child_body(self, node: BaseIRNode, parent_fence_len: int) -> str:

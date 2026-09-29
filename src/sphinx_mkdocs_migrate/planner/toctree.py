@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional, Set
 from ..analyzer.models import NavigationItem
+from ..constants import ROOT_DOC_CANDIDATE_STEMS
 
 
 def resolve_navigation_docnames(
@@ -50,12 +51,14 @@ def resolve_navigation_docnames(
             clean_p = clean_p[:-3]
         if not clean_p:
             return None
-        if (docs_dir / clean_p / "index.md").exists():
-            return f"{clean_p}/index"
+        for stem in ROOT_DOC_CANDIDATE_STEMS:
+            if (docs_dir / clean_p / f"{stem}.md").exists():
+                return f"{clean_p}/{stem}"
         if clean_p in generated_targets:
             return clean_p
-        if f"{clean_p}/index" in generated_targets:
-            return f"{clean_p}/index"
+        for stem in ROOT_DOC_CANDIDATE_STEMS:
+            if f"{clean_p}/{stem}" in generated_targets:
+                return f"{clean_p}/{stem}"
         return clean_p
 
     def add_doc(title: Optional[str], docname: str) -> None:
@@ -88,7 +91,7 @@ def resolve_navigation_docnames(
         if not target_dir.is_dir():
             return
         for path in sorted(target_dir.rglob("*.md")):
-            if path.name != "index.md":
+            if path.stem.lower() not in ROOT_DOC_CANDIDATE_STEMS:
                 add_doc(None, path.relative_to(docs_dir).with_suffix("").as_posix())
 
     def collect_nav_docs(items: List[NavigationItem]):
@@ -115,7 +118,7 @@ def resolve_navigation_docnames(
         # Fallback if no nav defined: preserve discovered documents deterministically
         for f in all_files:
             rel = f.relative_to(docs_dir)
-            if rel.name != "index.md":
+            if rel.stem.lower() not in ROOT_DOC_CANDIDATE_STEMS:
                 docname = rel.with_suffix("").as_posix()
                 if docname not in ordered_docnames:
                     ordered_docnames.append(docname)

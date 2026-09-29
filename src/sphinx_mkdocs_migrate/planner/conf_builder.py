@@ -93,10 +93,23 @@ def build_conf_py(
         "add_module_names",
         "autoclass_content",
         "autodoc_mock_imports",
+        "exclude_patterns",
+        "templates_path",
+        "html_file_suffix",
+        "html_link_suffix",
     ]
     for key in standard_settings:
         if key in custom_opts and custom_opts[key] is not None:
             lines.append(f"{key} = {repr(custom_opts[key])}")
+
+    if "html_context" in custom_opts and custom_opts["html_context"]:
+        formatted_ctx = pprint.pformat(custom_opts["html_context"], indent=4)
+        lines.extend(
+            [
+                "",
+                f"html_context = {formatted_ctx}",
+            ]
+        )
 
     if "html_theme_options" in custom_opts:
         formatted_opts = pprint.pformat(custom_opts["html_theme_options"], indent=4)

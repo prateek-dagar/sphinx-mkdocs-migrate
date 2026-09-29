@@ -1,8 +1,16 @@
 """Subsystem analyzer for MkDocs declarative navigation trees with path normalization and missing file detection."""
 
+import fnmatch
 from pathlib import Path, PurePosixPath
 from typing import List, Any, Optional, Set
+from ..constants import ROOT_DOC_CANDIDATE_STEMS
 from .models import NavigationItem, NavigationAnalysis
+
+
+def is_root_document_path(rel_path: str) -> bool:
+    """Returns True if the relative path represents a top-level root document."""
+    p = Path(rel_path)
+    return len(p.parts) == 1 and p.stem.lower() in ROOT_DOC_CANDIDATE_STEMS
 
 
 def _normalize_nav_path(raw_path: str) -> str:
@@ -91,10 +99,30 @@ class NavigationAnalyzer:
                 else:
                     missing_refs.append(ref)
 
-        # Detect orphan documents (on disk, but not in nav, excluding index.md)
+        def is_covered_by_wildcard(disc_path: str) -> bool:
+            for w_ref in generated_wildcard_refs:
+                pat = w_ref.split("|", 1)[1].strip() if "|" in w_ref else w_ref.strip()
+                pat = pat.replace("...", "").strip().lstrip("./").lstrip("/")
+                if not pat:
+                    continue
+                if fnmatch.fnmatch(disc_path, pat):
+                    return True
+                if fnmatch.fnmatch(disc_path, f"{pat}.md"):
+                    return True
+                if pat.endswith("/*"):
+                    base_prefix = pat[:-2]
+                    if disc_path.startswith(f"{base_prefix}/"):
+                        return True
+            return False
+
+        # Detect orphan documents (on disk, but not in nav, excluding root landing documents)
         orphans: List[str] = []
         for disc in discovered_rel_paths:
-            if disc not in referenced_paths and disc != "index.md":
+            if (
+                disc not in referenced_paths
+                and not is_root_document_path(disc)
+                and not is_covered_by_wildcard(disc)
+            ):
                 orphans.append(disc)
 
         return NavigationAnalysis(
