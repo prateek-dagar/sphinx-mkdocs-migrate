@@ -1,6 +1,6 @@
 # sphinx_mkdocs_migrate
 
-[![PyPI version](https://img.shields.io/badge/pypi-v0.1.0-blue.svg)](https://pypi.org/project/sphinx-mkdocs-migrate/)
+[![PyPI version](https://img.shields.io/badge/pypi-0.0.1.dev0-blue.svg)](https://pypi.org/project/sphinx-mkdocs-migrate/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **`sphinx-mkdocs-migrate`** (`sphinx-migrate`) is a deterministic, evidence-driven analyzer and migration engine that safely converts MkDocs and Material for MkDocs documentation projects to Sphinx + MyST Parser.
@@ -19,7 +19,7 @@
 ### What `sphinx-migrate` Does NOT Do
 * **No Speculative Heuristics**: If a syntax construct or custom plugin cannot be deterministically mapped, it is routed to `MANUAL` or `UNSUPPORTED` rather than guessed.
 * **No Source Code Mutation**: Does not rewrite Python `.py` source code or docstrings.
-* **No Forced Theme Bundles**: Theme selection is an explicit configurable policy (defaulting to modern Sphinx 8/9 compatible themes such as Furo), not an automatic dependency bundle.
+* **Source-Faithful Theme Mapping**: Material for MkDocs maps to `sphinx_immaterial`; the planned target theme and its package are preserved in generated `conf.py` rather than being silently replaced during validation.
 * **Build Success != Runtime Equivalence**: A successful Sphinx build proves structural and buildability correctness; it does not guarantee visual or JavaScript runtime identity with MkDocs Material.
 
 ---
@@ -99,6 +99,25 @@ sphinx-migrate validate path/to/project --build --strict
 | `pymdownx.emoji` | `MARKDOWN_EXTENSION` | `MANUAL` | Manual review of icon shortcodes (`:smile:`) | `MANUAL` |
 | `mkdocstrings` | `PLUGIN` | `TRANSFORM` | `sphinx.ext.autodoc` + `sphinx.ext.napoleon` | `EXTENSION_POLICY` |
 | `search.share` | `THEME_FEATURE` | `UNSUPPORTED` | No static Sphinx HTML equivalent | `UNSUPPORTED` |
+
+---
+
+## Roadmap & Future Evolution
+
+While `sphinx-mkdocs-migrate` is currently focused on high-fidelity migration from **MkDocs to Sphinx + MyST**, our planned roadmap includes full bi-directional support:
+
+* **Phase 1 (Current)**: Full-fidelity MkDocs & Material for MkDocs ➔ Sphinx + MyST migration with 100% AST byte preservation.
+* **Phase 2 (Bi-Directional)**: Reverse migration (Sphinx + MyST ➔ MkDocs + Material).
+
+See our full [**Roadmap Document**](docs/roadmap.md) for details.
+
+---
+
+## Contributors
+
+Thank you to everyone who has contributed to `sphinx-mkdocs-migrate`!
+
+Please see our [**Contributors List**](docs/contributors.md) for the full list of contributors.
 
 ---
 

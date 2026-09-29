@@ -3,11 +3,17 @@ import os
 import sys
 from pathlib import Path
 
+# Add src directory to sys.path for autodoc and dynamic metadata resolution
+sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
+
+from sphinx_mkdocs_migrate import __version__
+
 # -- Project information -----------------------------------------------------
 project = "sphinx-mkdocs-migrate"
 copyright = "2026, Prateek Dagar"
 author = "Prateek Dagar"
-release = "0.1.0b1"
+release = __version__
+version = __version__
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -33,6 +39,7 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
 }
+root_doc = "index"
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
