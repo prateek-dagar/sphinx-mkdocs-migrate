@@ -32,6 +32,7 @@ from ..parsing.markdown import (
     MarkdownParser,
     python_markdown_slug,
     myst_default_slug,
+    clean_heading_text,
 )
 from .models import (
     ProjectTransformationReport,
@@ -281,8 +282,10 @@ class TransformationEngine:
             transformed_content = self._inject_orphan_metadata(transformed_content)
 
         # Harmonize heading anchors for Python-Markdown slug compatibility
-        transformed_content = self._harmonize_heading_anchors(transformed_content)
         if harmonized_anchors:
+            transformed_content = self._harmonize_heading_anchors(
+                transformed_content, target_anchors=harmonized_anchors
+            )
             transformed_content, link_changes = self._harmonize_anchor_links(
                 transformed_content, harmonized_anchors
             )
@@ -681,8 +684,13 @@ class TransformationEngine:
         """Compute heading slug matching MyST Parser default slugify."""
         return myst_default_slug(title)
 
-    def _harmonize_heading_anchors(self, content: str) -> str:
+    def _harmonize_heading_anchors(
+        self, content: str, target_anchors: Optional[Set[str]] = None
+    ) -> str:
         """Prepend MyST anchor targets for headings whose Python-Markdown slug differs from MyST slug."""
+        if target_anchors is not None and not target_anchors:
+            return content
+
         lines = content.splitlines(keepends=True)
         output: List[str] = []
         in_code_block = False
@@ -709,20 +717,22 @@ class TransformationEngine:
                 heading_match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
                 if heading_match:
                     title = heading_match.group(2)
-                    pm_slug = self._python_markdown_slug(title)
-                    myst_slug = self._myst_default_slug(title)
+                    clean_title = clean_heading_text(title)
+                    pm_slug = self._python_markdown_slug(clean_title)
+                    myst_slug = self._myst_default_slug(clean_title)
                     if pm_slug and pm_slug != myst_slug:
-                        anchor_target = f"({pm_slug})="
-                        has_anchor = False
-                        for prev_i in range(len(output) - 1, -1, -1):
-                            p_line = output[prev_i].strip()
-                            if not p_line:
-                                continue
-                            if p_line == anchor_target:
-                                has_anchor = True
-                            break
-                        if not has_anchor:
-                            output.append(f"{anchor_target}\n")
+                        if target_anchors is None or pm_slug in target_anchors:
+                            anchor_target = f"({pm_slug})="
+                            has_anchor = False
+                            for prev_i in range(len(output) - 1, -1, -1):
+                                p_line = output[prev_i].strip()
+                                if not p_line:
+                                    continue
+                                if p_line == anchor_target:
+                                    has_anchor = True
+                                break
+                            if not has_anchor:
+                                output.append(f"{anchor_target}\n")
 
             output.append(line)
         return "".join(output)

@@ -260,3 +260,34 @@ def test_planner_includes_mkdocs_yml_in_obsolete_files(tmp_path: Path):
     )
 
     assert "mkdocs.yml" in plan.obsolete_files
+
+
+def test_planner_heading_anchors_only_when_referenced(tmp_path: Path):
+    """Ensure rule_heading_anchor actions are only planned when explicitly referenced by a link."""
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    # Unreferenced heading with markdown link URL
+    (docs / "changelog.md").write_text(
+        "## [4.2.1](https://github.com/example/repo) - UNRELEASED\n\nRelease notes.\n",
+        encoding="utf-8",
+    )
+    # Referenced heading with slash
+    (docs / "guide.md").write_text(
+        "## Request / Trace IDs\n\nDetails.\n", encoding="utf-8"
+    )
+    (docs / "index.md").write_text(
+        "# Home\n\nSee [Traces](guide.md#request-trace-ids) for info.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "mkdocs.yml").write_text("site_name: TestSite\n", encoding="utf-8")
+
+    plan = MigrationPlanner(tmp_path).create_plan(
+        deterministic_timestamp="2026-09-30T00:00:00Z"
+    )
+
+    heading_anchor_actions = [
+        a for a in plan.document_actions if a.rule_id == "rule_heading_anchor"
+    ]
+    assert len(heading_anchor_actions) == 1
+    assert heading_anchor_actions[0].source_file == "docs/guide.md"
+    assert heading_anchor_actions[0].target_directive == "request-trace-ids"

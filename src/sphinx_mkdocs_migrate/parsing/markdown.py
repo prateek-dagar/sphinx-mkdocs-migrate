@@ -24,13 +24,24 @@ class MarkdownParser:
         return builder.build_from_text(text)
 
 
+def clean_heading_text(title: str) -> str:
+    """Extract visible text from markdown heading by stripping links and inline code formatting."""
+    # Converts "[4.2.1](https://...) - UNRELEASED" -> "4.2.1 - UNRELEASED"
+    text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", title)
+    # Strip backticks `code` -> code
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    return text.strip()
+
+
 def python_markdown_slug(title: str) -> str:
     """Compute heading slug matching Python-Markdown's toc extension."""
-    v = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
+    clean_title = clean_heading_text(title)
+    v = unicodedata.normalize("NFKD", clean_title).encode("ascii", "ignore").decode("ascii")
     v = re.sub(r"[^\w\s-]", "", v).strip().lower()
     return re.sub(r"[-\s]+", "-", v)
 
 
 def myst_default_slug(title: str) -> str:
     """Compute heading slug matching MyST Parser default slugify."""
-    return re.sub(r"[^\w\u4e00-\u9fff\- ]", "", title.lower().replace(" ", "-"))
+    clean_title = clean_heading_text(title)
+    return re.sub(r"[^\w\u4e00-\u9fff\- ]", "", clean_title.lower().replace(" ", "-"))

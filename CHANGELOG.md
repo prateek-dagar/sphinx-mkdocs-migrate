@@ -7,13 +7,17 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.0.1.dev1] - 2026-09-30
+
 ### Added
 
+- Automated removal of `mkdocs.yml` and obsolete build scripts upon migration.
 - Interactive migration workflows and dependency management.
 - Complete `mkdocs.yml` to Sphinx configuration mapping and link harmonization.
 
 ### Fixed
 
+- Restrict heading anchor harmonization to referenced links, preventing extra anchors.
 
 ## [0.0.1.dev0] - 2026-09-29
 

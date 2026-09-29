@@ -42,7 +42,12 @@ from ..analyzer.mkdocs import detect_obsolete_mkdocs_files
 from ..analyzer.project import ProjectAnalyzer
 from ..rules.engine import MigrationRuleEngine
 from ..rules.models import MigrationAction
-from ..parsing.markdown import MarkdownParser, python_markdown_slug, myst_default_slug
+from ..parsing.markdown import (
+    MarkdownParser,
+    python_markdown_slug,
+    myst_default_slug,
+    clean_heading_text,
+)
 from ..parsing.markdown_ir import NodeKind
 from ..parsing.flow_extractor import DocumentFlowExtractor
 from ..parsing.html_flow_parser import HtmlFlowParser, HtmlFlowRole
@@ -440,43 +445,65 @@ class MigrationPlanner:
                 )
                 action_counter += 1
 
-        # Collect harmonized heading anchors across all documents where Python-Markdown slug diverges from MyST
+        # 1. Collect all internal anchor references across all markdown files (e.g. href="#some-anchor" or href="doc.md#some-anchor")
+        referenced_anchors: Set[str] = set()
+        for md_file in md_files:
+            try:
+                raw_text = md_file.read_text(encoding="utf-8")
+                for m in re.finditer(r"\[[^\]]*\]\(([^)\s]+)\)", raw_text):
+                    href = m.group(1)
+                    if not (
+                        href.startswith("http://")
+                        or href.startswith("https://")
+                        or href.startswith("mailto:")
+                    ):
+                        if "#" in href:
+                            anchor = href.split("#", 1)[1]
+                            if anchor:
+                                referenced_anchors.add(anchor)
+            except Exception:
+                pass
+
+        # Collect harmonized heading anchors only for headings that are actually referenced
+        # and where Python-Markdown slug diverges from MyST default slug
         harmonized_anchor_slugs: Set[str] = set()
         heading_actions: List[MigrationAction] = []
 
-        for md_file in md_files:
-            rel_file = md_file.relative_to(self.project_root).as_posix()
-            try:
-                raw_text = md_file.read_text(encoding="utf-8")
-                doc_ir = self.parser.parse_text(raw_text, file_path=rel_file)
-                for node in doc_ir.walk():
-                    if node.kind == NodeKind.HEADING:
-                        title = node.metadata.get("title", "")
-                        if not title and node.raw_text:
-                            m = re.match(r"^#{1,6}\s+(.+?)\s*$", node.raw_text.strip())
-                            if m:
-                                title = m.group(1)
-                        if title:
-                            pm_slug = python_markdown_slug(title)
-                            myst_slug = myst_default_slug(title)
-                            if pm_slug and pm_slug != myst_slug:
-                                harmonized_anchor_slugs.add(pm_slug)
-                                heading_actions.append(
-                                    MigrationAction(
-                                        action_id=f"act_{action_counter:04d}",
-                                        rule_id="rule_heading_anchor",
-                                        source_file=rel_file,
-                                        start_line=node.start_line,
-                                        end_line=node.end_line,
-                                        classification=Classification.TRANSFORM,
-                                        source_kind=NodeKind.HEADING,
-                                        target_directive=pm_slug,
-                                        description=f"Add MyST target anchor ({pm_slug})= for Python-Markdown slug compatibility",
+        if referenced_anchors:
+            for md_file in md_files:
+                rel_file = md_file.relative_to(self.project_root).as_posix()
+                try:
+                    raw_text = md_file.read_text(encoding="utf-8")
+                    doc_ir = self.parser.parse_text(raw_text, file_path=rel_file)
+                    for node in doc_ir.walk():
+                        if node.kind == NodeKind.HEADING:
+                            title = node.metadata.get("title", "")
+                            if not title and node.raw_text:
+                                m = re.match(r"^#{1,6}\s+(.+?)\s*$", node.raw_text.strip())
+                                if m:
+                                    title = m.group(1)
+                            if title:
+                                clean_title = clean_heading_text(title)
+                                pm_slug = python_markdown_slug(clean_title)
+                                myst_slug = myst_default_slug(clean_title)
+                                if pm_slug in referenced_anchors and pm_slug != myst_slug:
+                                    harmonized_anchor_slugs.add(pm_slug)
+                                    heading_actions.append(
+                                        MigrationAction(
+                                            action_id=f"act_{action_counter:04d}",
+                                            rule_id="rule_heading_anchor",
+                                            source_file=rel_file,
+                                            start_line=node.start_line,
+                                            end_line=node.end_line,
+                                            classification=Classification.TRANSFORM,
+                                            source_kind=NodeKind.HEADING,
+                                            target_directive=pm_slug,
+                                            description=f"Add MyST target anchor ({pm_slug})= for Python-Markdown slug compatibility",
+                                        )
                                     )
-                                )
-                                action_counter += 1
-            except Exception:
-                pass
+                                    action_counter += 1
+                except Exception:
+                    pass
 
         all_actions.extend(heading_actions)
 
