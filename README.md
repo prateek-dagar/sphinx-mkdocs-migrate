@@ -38,11 +38,11 @@ The migration lifecycle consists of 4 distinct commands:
 
 ```text
 sphinx-migrate analyze   # 1. Factual project & subsystem inspection
-       ↑
+       ↓
 sphinx-migrate plan      # 2. Deterministic, read-only MigrationPlan generation
-       ⊑
+       ↓
 sphinx-migrate migrate   # 3. Dry-run diffing or atomic disk transformation
-       ⊑
+       ↓
 sphinx-migrate validate  # 4. AST validation & isolated sandbox Sphinx build
 ```
 
