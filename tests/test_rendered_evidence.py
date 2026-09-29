@@ -1,5 +1,12 @@
 """Tests for Phase 3: Rendered Evidence Extraction (Lossless DOM + Semantic Flow Projection)."""
 
+import pytest
+
+pytest.importorskip(
+    "research.html_parity",
+    reason="research module is local-only and not tracked in git",
+)
+
 from research.html_parity.rendered_evidence import (
     RenderedEvidenceExtractor,
     RenderedHeading,

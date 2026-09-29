@@ -1,5 +1,12 @@
 """Tests for Phase 4: Deterministic Source IR <-> Rendered Evidence Correlation."""
 
+import pytest
+
+pytest.importorskip(
+    "research.html_parity",
+    reason="research module is local-only and not tracked in git",
+)
+
 from sphinx_mkdocs_migrate.parsing.flow_extractor import DocumentFlowExtractor
 from research.html_parity.rendered_evidence import (
     RenderedEvidenceExtractor,
