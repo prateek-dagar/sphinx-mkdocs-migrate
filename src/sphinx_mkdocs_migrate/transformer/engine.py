@@ -37,10 +37,15 @@ from .myst_transformer import MySTDocumentTransformer
 class TransformationEngine:
     """Consumes a MigrationPlan to transform documentation and generate Sphinx artifacts via source-preserving patching."""
 
-    def __init__(self, plan: MigrationPlan):
+    def __init__(
+        self,
+        plan: MigrationPlan,
+        manual_overrides: Optional[Dict[str, str]] = None,
+    ):
         self.plan = plan
         self.parser = MarkdownParser()
         self.project_root = Path(plan.project_root)
+        self.manual_overrides = manual_overrides or {}
 
     def execute(
         self, write_to_disk: bool = False, overwrite_conf: bool = False
@@ -173,7 +178,9 @@ class TransformationEngine:
         source_fp = hashlib.sha256(orig_content.encode("utf-8")).hexdigest()[:16]
 
         doc_ir = self.parser.parse_text(orig_content, file_path=source_file_rel)
-        transformer = MySTDocumentTransformer(actions)
+        transformer = MySTDocumentTransformer(
+            actions, manual_overrides=self.manual_overrides
+        )
         (
             transformed_content,
             applied_cnt,

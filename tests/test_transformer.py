@@ -13,7 +13,7 @@ from sphinx_mkdocs_migrate.planner.models import (
     MigrationPlanMetadata,
     GeneratedDocumentProposal,
 )
-from sphinx_mkdocs_migrate.analyzer.models import ConfigAnalysis
+from sphinx_mkdocs_migrate.analyzer.models import ConfigAnalysis, Classification
 
 
 @pytest.fixture
@@ -130,6 +130,27 @@ def test_manual_and_unsupported_actions_retain_original_source():
     assert applied == 0
     assert manual == 1
     assert "::: my_package.core.Client" in transformed
+
+
+def test_manual_overrides_transformer():
+    """Verify that manual_overrides properly replaces Classification.MANUAL construct."""
+    doc_text = "# API Guide\n\n::: my_package.core.Client\n\nParagraph after symbol.\n"
+    parser = MarkdownParser()
+    doc_ir = parser.parse_text(doc_text, "api_manual.md")
+
+    rule_engine = MigrationRuleEngine()
+    actions = rule_engine.create_actions(doc_ir, raw_lines=doc_text.splitlines())
+    manual_act = next(a for a in actions if a.classification == Classification.MANUAL)
+
+    overrides = {manual_act.action_id: "<!-- CUSTOM_REPLACEMENT -->\n"}
+    transformer = MySTDocumentTransformer(actions, manual_overrides=overrides)
+    transformed, applied, preserved, manual, unsupported, stale_cnt, stale_details = (
+        transformer.transform_document(doc_ir, doc_text)
+    )
+    assert applied == 1
+    assert manual == 0
+    assert "<!-- CUSTOM_REPLACEMENT -->" in transformed
+    assert "::: my_package.core.Client" not in transformed
 
 
 def test_transformation_idempotence():

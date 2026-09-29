@@ -41,15 +41,21 @@ sphinx-migrate plan path/to/project --output-json plan.json
 ```
 
 ### Step 3: Migrate
-Transform documentation files and scaffold Sphinx `conf.py`:
+Transform documentation files, scaffold Sphinx `conf.py`, and manage dependencies:
 
 ```bash
 # Dry-run with unified diffs (no disk changes):
 sphinx-migrate migrate path/to/project --diff
 
-# Apply transformations and create conf.py:
+# Apply transformations with interactive review & dependency prompts:
 sphinx-migrate migrate path/to/project --apply
+
+# Apply non-interactively (e.g. in CI/CD or scripts):
+sphinx-migrate migrate path/to/project --apply -y
 ```
+
+> [!TIP]
+> When constructs require manual review (such as unmapped custom directives or macros), `sphinx-migrate migrate` interactively prompts you to either keep original content, comment out the block (`<!-- MANUAL_REVIEW: ... -->`), or enter a custom MyST replacement. In CI/CD pipelines, pass `-y` to safely default to keeping original content without prompting.
 
 ### Step 4: Validate
 Validate the converted Sphinx project in an isolated sandbox build:

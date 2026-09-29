@@ -89,6 +89,14 @@ sphinx-migrate migrate [PROJECT_PATH] [OPTIONS]
 ### Options
 
 * `--apply`: Write transformed files, scaffolds, and `conf.py` to disk. *(Default is dry-run mode)*
+* `-y`, `--yes`: Automatically confirm prompts and apply migration without interactive confirmation.
+* `-i`, `--interactive / --no-interactive`: Prompt interactively to review and resolve constructs requiring manual review. In interactive mode, prompts provide three resolutions for each manual construct:
+  * `[1]` **Keep original content** *(safe, default)*
+  * `[2]` **Comment out block** (`<!-- MANUAL_REVIEW: <CONSTRUCT> ... -->`)
+  * `[3]` **Enter custom replacement text** *(allows arbitrary MyST directives, supports `\n` for multiline input)*
+  * `[s]` **Skip remaining** and keep original content for all subsequent items
+* `--install-deps / --no-install-deps`: Automatically install (or skip installing) missing Sphinx dependencies in the active Python environment.
+* `--uninstall-mkdocs / --no-uninstall-mkdocs`: Automatically uninstall (or skip uninstalling) obsolete MkDocs dependencies from the active Python environment.
 * `--force-conf`: Overwrite existing conflicting `conf.py` if present on disk.
 * `--diff`: Display unified color diff of document transformations in terminal output.
 * `--validate / --no-validate`: Validate transformed Markdown structure and Sphinx config. *(Default: `--validate`)*
@@ -99,14 +107,20 @@ sphinx-migrate migrate [PROJECT_PATH] [OPTIONS]
 ### Examples
 
 ```bash
-# Preview transformations as diff without modifying disk
+# Preview transformations as diff without modifying disk (safe dry-run)
 sphinx-migrate migrate --diff
 
-# Apply migration and write changes to disk
+# Apply migration with interactive confirmation and dependency check
 sphinx-migrate migrate --apply
 
+# Apply non-interactively (e.g. in CI/CD) without prompting
+sphinx-migrate migrate --apply -y
+
+# Apply migration and automatically install missing Sphinx dependencies
+sphinx-migrate migrate --apply -y --install-deps
+
 # Overwrite existing conflicting conf.py and enforce zero warnings
-sphinx-migrate migrate --apply --force-conf --strict
+sphinx-migrate migrate --apply -y --force-conf --strict
 ```
 
 ---

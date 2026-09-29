@@ -2,7 +2,7 @@
 
 import re
 import hashlib
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from ..parsing.markdown_ir import BaseIRNode, NodeKind, DocumentIR
 from ..rules.models import MigrationAction
 from ..analyzer.models import Classification
@@ -25,13 +25,17 @@ class MySTDocumentTransformer:
     fingerprint stale-plan validation, safe recursive fence allocation, and disjoint parent ownership checks."""
 
     def __init__(
-        self, actions: List[MigrationAction], strict_fingerprint: bool = False
+        self,
+        actions: List[MigrationAction],
+        strict_fingerprint: bool = False,
+        manual_overrides: Optional[Dict[str, str]] = None,
     ):
         self.actions = actions
         self.actions_by_span: Dict[Tuple[int, int], MigrationAction] = {
             (a.start_line, a.end_line): a for a in actions
         }
         self.strict_fingerprint = strict_fingerprint
+        self.manual_overrides = manual_overrides or {}
 
     def transform_document(
         self, doc_ir: DocumentIR, raw_source: str
@@ -111,7 +115,14 @@ class MySTDocumentTransformer:
             elif action.classification == Classification.PRESERVE:
                 constructs_preserved += 1
             elif action.classification == Classification.MANUAL:
-                manual_reported += 1
+                if action.action_id in self.manual_overrides:
+                    custom_replacement = self.manual_overrides[action.action_id]
+                    spans_to_replace.append(
+                        (node.start_line, node.end_line, custom_replacement)
+                    )
+                    transforms_applied += 1
+                else:
+                    manual_reported += 1
             elif action.classification == Classification.UNSUPPORTED:
                 unsupported_reported += 1
 
