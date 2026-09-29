@@ -350,7 +350,6 @@ class TransformationValidator:
                     capture_output=True,
                     text=True,
                     stdin=subprocess.DEVNULL,
-                    timeout=30,
                 )
                 combined_output = f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
 
