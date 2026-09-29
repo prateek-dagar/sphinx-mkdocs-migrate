@@ -2,7 +2,7 @@
 Briefly describe the change, rationale, and motivation.
 
 ## Changes Made
-- 
+-
 
 ## Verification & Testing
 - [ ] Added or updated unit tests under `tests/`
