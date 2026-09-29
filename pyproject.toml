@@ -56,7 +56,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/prateek-dagar/sphinx-mkdocs-migrate"
-Documentation = "https://github.com/prateek-dagar/sphinx-mkdocs-migrate#readme"
+Documentation = "https://sphinx-mkdocs-migrate.readthedocs.io/en/latest/"
 Repository = "https://github.com/prateek-dagar/sphinx-mkdocs-migrate.git"
 Issues = "https://github.com/prateek-dagar/sphinx-mkdocs-migrate/issues"
 Changelog = "https://github.com/prateek-dagar/sphinx-mkdocs-migrate/blob/main/CHANGELOG.md"

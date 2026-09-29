@@ -9,7 +9,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Corrected direction of CLI workflow lifecycle arrows in `README.md`.
 
 ## [0.0.1.dev0] - 2026-09-29
 

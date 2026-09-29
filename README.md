@@ -1,6 +1,7 @@
 # sphinx_mkdocs_migrate
 
 [![PyPI version](https://img.shields.io/badge/pypi-0.0.1.dev0-blue.svg)](https://pypi.org/project/sphinx-mkdocs-migrate/)
+[![Documentation Status](https://readthedocs.org/projects/sphinx-mkdocs-migrate/badge/?version=latest)](https://sphinx-mkdocs-migrate.readthedocs.io/en/latest/?badge=latest)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **`sphinx-mkdocs-migrate`** (`sphinx-migrate`) is a deterministic, evidence-driven analyzer and migration engine that safely converts MkDocs and Material for MkDocs documentation projects to Sphinx + MyST Parser.
