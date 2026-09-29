@@ -329,12 +329,21 @@ class TransformationValidator:
                                 f'"{theme_mod}",', ""
                             ).replace(f"'{theme_mod}',", "")
 
-                # Ensure sphinx_immaterial has html_theme_options in conf if missing
-                if (
-                    "sphinx_immaterial" in final_conf
-                    and "html_theme_options" not in final_conf
-                ):
-                    final_conf += "\nhtml_theme_options = {'font': False}\n"
+                # Ensure sphinx_immaterial disables remote Google font downloads in sandbox builds
+                if "sphinx_immaterial" in final_conf:
+                    if "html_theme_options" in final_conf:
+                        if (
+                            "'font': False" not in final_conf
+                            and '"font": False' not in final_conf
+                        ):
+                            final_conf = re.sub(
+                                r"html_theme_options\s*=\s*\{",
+                                "html_theme_options = {'font': False, ",
+                                final_conf,
+                                count=1,
+                            )
+                    else:
+                        final_conf += "\nhtml_theme_options = {'font': False}\n"
 
                 conf_dest.write_text(final_conf, encoding="utf-8")
 
