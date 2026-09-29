@@ -1,0 +1,26 @@
+{
+  "projectName": "sphinx-mkdocs-migrate",
+  "projectOwner": "prateek-dagar",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "docs/contributors.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "prateek-dagar",
+      "name": "Prateek Dagar",
+      "avatar_url": "https://avatars.githubusercontent.com/u/prateek-dagar",
+      "profile": "https://github.com/prateek-dagar",
+      "contributions": [
+        "code",
+        "doc",
+        "maintenance",
+        "design"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7
+}

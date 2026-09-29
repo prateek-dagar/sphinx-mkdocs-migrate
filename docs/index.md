@@ -6,15 +6,23 @@
 
 getting_started.md
 migration_guide.md
-cli_reference.md
 ```
 
 ```{toctree}
 :maxdepth: 2
-:caption: Architecture & Policies
+:caption: Reference
 
-architecture.md
+cli_reference.md
 policy_catalog.md
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Community & Contributing
+
+contributing.md
+contributors.md
+roadmap.md
 ```
 
 ## Overview
