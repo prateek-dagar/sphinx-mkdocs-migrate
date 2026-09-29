@@ -11,14 +11,16 @@ Tests deterministic migration across all key structural and configuration scenar
 8. Scenario RTD Functions: ReadTheDocs theme, snippets, manual function symbols.
 9. Scenario Multi-version Tabs: Multi-version tabs, external snippets, dropdowns.
 """
-import pytest
+
 from pathlib import Path
 from sphinx_mkdocs_migrate.planner.planner import MigrationPlanner
-from sphinx_mkdocs_migrate.analyzer.models import Classification
 from sphinx_mkdocs_migrate.transformer.engine import TransformationEngine
 from sphinx_mkdocs_migrate.validator.verifier import TransformationValidator
 
-def create_synthetic_project(tmp_path: Path, config_yaml: str, files: dict[str, str]) -> Path:
+
+def create_synthetic_project(
+    tmp_path: Path, config_yaml: str, files: dict[str, str]
+) -> Path:
     """Helper to build a self-contained in-memory documentation project."""
     (tmp_path / "mkdocs.yml").write_text(config_yaml, encoding="utf-8")
     for rel_path, content in files.items():
@@ -26,6 +28,7 @@ def create_synthetic_project(tmp_path: Path, config_yaml: str, files: dict[str, 
         file_p.parent.mkdir(parents=True, exist_ok=True)
         file_p.write_text(content, encoding="utf-8")
     return tmp_path
+
 
 def test_scenario_material_full_pipeline(tmp_path):
     """Scenario 1: Material theme, sections, copy button, admonitions, tabs, dropdowns, mermaid, snippets, API directive."""
@@ -95,7 +98,7 @@ graph TD;
 
 ::: sample.formatter.PipelineFormatter
 """,
-        "docs/examples/demo.py": """print('hello')\n"""
+        "docs/examples/demo.py": """print('hello')\n""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -120,9 +123,12 @@ graph TD;
     assert report.documents_changed == 3
 
     validator = TransformationValidator()
-    v_report = validator.validate_transformation_report(report, run_sphinx_build=True, strict_warnings=False)
+    v_report = validator.validate_transformation_report(
+        report, run_sphinx_build=True, strict_warnings=False
+    )
     assert v_report.passed is True
     assert v_report.commonmark_parse_successful is True
+
 
 def test_scenario_rtd_theme_pipeline(tmp_path):
     """Scenario 2: ReadTheDocs theme mapping, sync/async sections, snippet includes."""
@@ -156,7 +162,7 @@ Support for asynchronous operations.
         "docs/compatibility.md": """# Compatibility
 
 Compatibility matrices across runtimes.
-"""
+""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -173,8 +179,11 @@ Compatibility matrices across runtimes.
     assert report.documents_changed == 2
 
     validator = TransformationValidator()
-    v_report = validator.validate_transformation_report(report, run_sphinx_build=True, strict_warnings=False)
+    v_report = validator.validate_transformation_report(
+        report, run_sphinx_build=True, strict_warnings=False
+    )
     assert v_report.passed is True
+
 
 def test_scenario_material_tabs_and_api(tmp_path):
     """Scenario 3: Material theme, tabs, dropdowns, and API symbol review."""
@@ -217,7 +226,7 @@ Validate types and data structures.
         "docs/api.md": """# API Reference
 
 ::: sample.models.BaseModel
-"""
+""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -233,8 +242,11 @@ Validate types and data structures.
     assert report.documents_examined == 3
 
     validator = TransformationValidator()
-    v_report = validator.validate_transformation_report(report, run_sphinx_build=True, strict_warnings=False)
+    v_report = validator.validate_transformation_report(
+        report, run_sphinx_build=True, strict_warnings=False
+    )
     assert v_report.passed is True
+
 
 def test_scenario_math_and_multilang_tabs(tmp_path):
     """Scenario 4: dollarmath detection, multi-language tabs, mermaid diagram."""
@@ -278,7 +290,7 @@ Expression syntax and evaluation.
 graph LR;
     A-->B;
 ```
-"""
+""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -299,6 +311,7 @@ graph LR;
     validator = TransformationValidator()
     v_report = validator.validate_transformation_report(report, run_sphinx_build=True)
     assert v_report.passed is True
+
 
 def test_scenario_rule_tabs_and_config(tmp_path):
     """Scenario 5: rule tabs, admonitions, inline highlight configuration."""
@@ -342,7 +355,7 @@ Configure via pyproject.toml.
 
 !!! warning "Deprecated Flags"
     Avoid legacy flags.
-"""
+""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -359,6 +372,7 @@ Configure via pyproject.toml.
     validator = TransformationValidator()
     v_report = validator.validate_transformation_report(report, run_sphinx_build=True)
     assert v_report.passed is True
+
 
 def test_scenario_definition_lists_and_plugins(tmp_path):
     """Scenario 6: def_list extension mapping, readthedocs theme, plugin manual review."""
@@ -386,7 +400,7 @@ Term 1
         "docs/plugins.md": """# Plugins
 
 Plugin interfaces.
-"""
+""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -403,6 +417,7 @@ Plugin interfaces.
     validator = TransformationValidator()
     v_report = validator.validate_transformation_report(report, run_sphinx_build=True)
     assert v_report.passed is True
+
 
 def test_scenario_theme_overrides_and_tabs(tmp_path):
     """Scenario 7: dropdowns, tabs, theme overrides detection."""
@@ -444,7 +459,7 @@ Override theme templates via Jinja2.
 
 !!! note "Overrides"
     Check overrides directory.
-"""
+""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -460,6 +475,7 @@ Override theme templates via Jinja2.
     validator = TransformationValidator()
     v_report = validator.validate_transformation_report(report, run_sphinx_build=True)
     assert v_report.passed is True
+
 
 def test_scenario_rtd_functions_and_snippets(tmp_path):
     """Scenario 8: ReadTheDocs theme, snippets, manual function symbols."""
@@ -486,7 +502,7 @@ Clean helper APIs for data processing pipelines.
 API references for helper utilities.
 
 ::: sample.functions.clean_names
-"""
+""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)
@@ -503,6 +519,7 @@ API references for helper utilities.
     validator = TransformationValidator()
     v_report = validator.validate_transformation_report(report, run_sphinx_build=True)
     assert v_report.passed is True
+
 
 def test_scenario_multiversion_tabs_and_snippets(tmp_path):
     """Scenario 9: Multi-version tabs, external snippets inclusion, dropdowns."""
@@ -547,7 +564,7 @@ Define optional parameters with default values.
 
 --8<-- "docs_src/quickstart/demo.py"
 """,
-        "docs_src/quickstart/demo.py": """app = make_app()\n"""
+        "docs_src/quickstart/demo.py": """app = make_app()\n""",
     }
     project_dir = create_synthetic_project(tmp_path, cfg, files)
     planner = MigrationPlanner(project_dir)

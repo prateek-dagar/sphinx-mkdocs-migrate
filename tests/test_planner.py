@@ -1,15 +1,16 @@
 """Unit and integration tests for Milestone 3.3 & 3.3a: Deterministic MigrationPlan, Provenance, and Traceability."""
+
 import time
 import pytest
 from pathlib import Path
 from sphinx_mkdocs_migrate.planner.planner import MigrationPlanner
 from sphinx_mkdocs_migrate.planner.models import RequirementProvenance
-from sphinx_mkdocs_migrate.analyzer.models import Classification
-from sphinx_mkdocs_migrate.parsing.markdown_ir import NodeKind
+
 
 @pytest.fixture
 def fixture_dir():
     return Path(__file__).parent / "fixtures" / "sample_mkdocs"
+
 
 def test_migration_planner_aggregation_and_deduplication(fixture_dir):
     """Test full repository inventory aggregation into a deterministic MigrationPlan with provenance."""
@@ -61,14 +62,19 @@ def test_migration_planner_aggregation_and_deduplication(fixture_dir):
 
     # 6. Manual review items traceable to files
     assert len(plan.manual_action_items) >= 1
-    manual_api = next(item for item in plan.manual_action_items if item.construct_type == "API_DIRECTIVE")
+    manual_api = next(
+        item
+        for item in plan.manual_action_items
+        if item.construct_type == "API_DIRECTIVE"
+    )
     assert manual_api.source_file.endswith("api.md")
     assert "sample.client.Client" in manual_api.instruction
+
 
 def test_planner_default_canonical_hash_determinism(fixture_dir):
     """Ensure two default plan runs at different timestamps produce IDENTICAL canonical hashes and content."""
     planner = MigrationPlanner(fixture_dir)
-    
+
     plan_a = planner.create_plan()
     time.sleep(0.01)
     plan_b = planner.create_plan()
@@ -78,6 +84,7 @@ def test_planner_default_canonical_hash_determinism(fixture_dir):
     # But the canonical identity and hashes are strictly identical!
     assert plan_a.canonical_hash() == plan_b.canonical_hash()
     assert plan_a.canonical_dict() == plan_b.canonical_dict()
+
 
 def test_generated_api_pages_use_autosummary_without_stub_generation(tmp_path):
     """Generated API pages provide summary tables while retaining owned Markdown pages."""
@@ -97,9 +104,17 @@ def test_generated_api_pages_use_autosummary_without_stub_generation(tmp_path):
         encoding="utf-8",
     )
 
-    plan = MigrationPlanner(tmp_path).create_plan(deterministic_timestamp="2026-09-27T00:00:00Z")
-    package_doc = next(d for d in plan.generated_documents if d.target_path.endswith("example/index.md"))
-    core_doc = next(d for d in plan.generated_documents if d.target_path.endswith("example/core.md"))
+    plan = MigrationPlanner(tmp_path).create_plan(
+        deterministic_timestamp="2026-09-27T00:00:00Z"
+    )
+    package_doc = next(
+        d
+        for d in plan.generated_documents
+        if d.target_path.endswith("example/index.md")
+    )
+    core_doc = next(
+        d for d in plan.generated_documents if d.target_path.endswith("example/core.md")
+    )
 
     assert "sphinx.ext.autosummary" in plan.get_required_extensions()
     assert plan.proposed_sphinx_config.custom_options["autosummary_generate"] is False
@@ -112,12 +127,122 @@ def test_generated_api_pages_use_autosummary_without_stub_generation(tmp_path):
     assert ".. rubric:: Attributes" in core_doc.content
     assert "   VALUE" in core_doc.content
 
+
 def test_planner_read_only_invariant(fixture_dir):
     """Ensure that calling MigrationPlanner does not create or modify any files on disk."""
     docs_before = set(fixture_dir.rglob("*"))
-    
+
     planner = MigrationPlanner(fixture_dir)
-    plan = planner.create_plan()
+    _ = planner.create_plan()
 
     docs_after = set(fixture_dir.rglob("*"))
     assert docs_before == docs_after
+
+
+def test_conf_builder_generates_valid_conf_py():
+    """Verify that build_conf_py synthesizes expected Sphinx settings and docstring hooks."""
+    from sphinx_mkdocs_migrate.planner.conf_builder import build_conf_py
+    from sphinx_mkdocs_migrate.planner.models import (
+        ConfigMigrationProposal,
+        ThemeMigrationProposal,
+    )
+
+    cfg = ConfigMigrationProposal(
+        project_name="MyLib",
+        theme=ThemeMigrationProposal(
+            source_theme="material", target_theme="sphinx_immaterial", rationale="test"
+        ),
+        extensions_to_add=["sphinx.ext.autodoc", "myst_parser"],
+        myst_enable_extensions=["colon_fence", "deflist"],
+        custom_options={"html_title": "MyLib Docs", "version": "1.0.0"},
+    )
+    conf_text = build_conf_py(cfg=cfg, plan_hash="abc123hash", has_generated_docs=True)
+
+    assert "project = 'MyLib'" in conf_text
+    assert "html_theme = 'sphinx_immaterial'" in conf_text
+    assert "sphinx.ext.autodoc" in conf_text
+    assert "html_title = 'MyLib Docs'" in conf_text
+    assert "version = '1.0.0'" in conf_text
+    assert "def process_docstrings" in conf_text
+    assert "def setup(app):" in conf_text
+
+
+def test_semantic_toctree_planner_resolution(tmp_path):
+    """Verify resolve_navigation_docnames and build_semantic_toctree resolve headings and paths."""
+    from sphinx_mkdocs_migrate.planner.toctree import (
+        resolve_navigation_docnames,
+        build_semantic_toctree,
+    )
+    from sphinx_mkdocs_migrate.analyzer.models import NavigationItem
+
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text("# Home\n")
+    (docs / "guide.md").write_text("# Guide\n")
+
+    items = [
+        NavigationItem(title="Home", path="index.md"),
+        NavigationItem(title="User Guide", path="guide.md"),
+    ]
+    docnames = resolve_navigation_docnames(
+        nav_entries=items,
+        all_files=[docs / "index.md", docs / "guide.md"],
+        docs_dir=docs,
+        project_root=tmp_path,
+    )
+    assert docnames == ["Home <self>", "User Guide <guide>"]
+
+    toctree_block = build_semantic_toctree(
+        nav_entries=items,
+        all_files=[docs / "index.md", docs / "guide.md"],
+        docs_dir=docs,
+        project_root=tmp_path,
+    )
+    assert "```{toctree}" in toctree_block
+    assert "Home <self>" in toctree_block
+    assert "User Guide <guide>" in toctree_block
+
+
+def test_ci_planner_tox_and_github_actions():
+    """Verify CI workflow planning produces clean tox [testenv:docs] and GitHub Action job."""
+    from sphinx_mkdocs_migrate.planner.ci import (
+        determine_tox_dependency_line,
+        build_tox_docs_env,
+        build_github_docs_job,
+    )
+    from sphinx_mkdocs_migrate.analyzer.models import DependencyAnalysis
+
+    dep_analysis = DependencyAnalysis(
+        source_group_type="dependency-groups", source_group_name="docs"
+    )
+    dep_line = determine_tox_dependency_line(dep_analysis)
+    assert dep_line == "dependency_groups = docs"
+
+    tox_env = build_tox_docs_env(dep_line)
+    assert "[testenv:docs]" in tox_env
+    assert "dependency_groups = docs" in tox_env
+    assert "sphinx-build -b html docs site/_build/html" in tox_env
+
+    from sphinx_mkdocs_migrate.analyzer.ci import (
+        DEFAULT_CHECKOUT_TAG,
+        DEFAULT_CHECKOUT_SHA,
+        DEFAULT_SETUP_UV_TAG,
+        DEFAULT_SETUP_UV_SHA,
+    )
+    from sphinx_mkdocs_migrate.planner.ci import plan_ci_workflow
+
+    chk_pinned = f"{DEFAULT_CHECKOUT_SHA} # {DEFAULT_CHECKOUT_TAG}"
+    uv_pinned = f"{DEFAULT_SETUP_UV_SHA} # {DEFAULT_SETUP_UV_TAG}"
+
+    gh_job = build_github_docs_job(
+        checkout_ref=chk_pinned,
+        uv_ref=uv_pinned,
+    )
+    assert f"actions/checkout@{chk_pinned}" in gh_job
+    assert f"astral-sh/setup-uv@{uv_pinned}" in gh_job
+    assert "uvx tox -e docs" in gh_job
+
+    # Verify default fallback in plan_ci_workflow
+    plan = plan_ci_workflow(ci_analysis=None, dep_analysis=dep_analysis)
+    assert plan.checkout_pinned_ref == chk_pinned
+    assert plan.setup_uv_pinned_ref == uv_pinned

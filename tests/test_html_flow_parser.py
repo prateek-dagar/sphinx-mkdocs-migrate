@@ -1,12 +1,6 @@
 """Tests for HtmlFlowParser: empirical DOM flow extraction, docstrings, and summary tables."""
-import pytest
-from pathlib import Path
-from sphinx_mkdocs_migrate.parsing.html_flow_parser import (
-    HtmlFlowParser,
-    HtmlFlowRole,
-    HtmlFlowElement,
-    HtmlPageFlow
-)
+
+from sphinx_mkdocs_migrate.parsing.html_flow_parser import HtmlFlowParser, HtmlFlowRole
 
 SAMPLE_MODULE_HTML = """
 <article class="md-content__inner md-typeset">
@@ -126,6 +120,7 @@ SAMPLE_GENERIC_PAGE_HTML = """
 </article>
 """
 
+
 def test_html_flow_parser_module_with_docstring_and_tables():
     parser = HtmlFlowParser()
     flow = parser.parse_html(SAMPLE_MODULE_HTML, rel_route="reference/sample/core.md")
@@ -155,15 +150,19 @@ def test_html_flow_parser_module_with_docstring_and_tables():
     assert flow.elements[3].role == HtmlFlowRole.AUTOSUMMARY
     assert "format_time" in flow.elements[3].symbols
 
-    # Element 4: API_MODULE (Automodule directive)
-    assert flow.elements[4].role == HtmlFlowRole.API_MODULE
-    assert flow.elements[4].directive == "automodule"
+    # Element 4: API_CLASS (Autoclass directive from observed child class)
+    assert flow.elements[4].role == HtmlFlowRole.API_CLASS
+    assert flow.elements[4].directive == "autoclass"
+    assert flow.elements[4].qname == "sample.core.BaseFormatter"
     assert flow.elements[4].options.get("members") is True
     assert flow.elements[4].options.get("show-inheritance") is True
 
+
 def test_html_flow_parser_multi_paragraph_docstrings():
     parser = HtmlFlowParser()
-    flow = parser.parse_html(SAMPLE_MULTI_PARAGRAPH_HTML, rel_route="reference/sample/multi.md")
+    flow = parser.parse_html(
+        SAMPLE_MULTI_PARAGRAPH_HTML, rel_route="reference/sample/multi.md"
+    )
 
     assert len(flow.elements) == 6
     assert flow.elements[0].role == HtmlFlowRole.HEADING
@@ -178,9 +177,12 @@ def test_html_flow_parser_multi_paragraph_docstrings():
     assert "Second paragraph" in flow.elements[2].text
     assert "Third paragraph" in flow.elements[3].text
 
+
 def test_html_flow_parser_no_docstring_module():
     parser = HtmlFlowParser()
-    flow = parser.parse_html(SAMPLE_NO_DOCSTRING_HTML, rel_route="reference/sample/exceptions.md")
+    flow = parser.parse_html(
+        SAMPLE_NO_DOCSTRING_HTML, rel_route="reference/sample/exceptions.md"
+    )
 
     assert len(flow.elements) == 3
     # Heading -> Summary Table -> Automodule (No empty prose inserted)
@@ -188,6 +190,7 @@ def test_html_flow_parser_no_docstring_module():
     assert flow.elements[1].role == HtmlFlowRole.AUTOSUMMARY
     assert flow.elements[2].role == HtmlFlowRole.API_MODULE
     assert "SampleError" in flow.elements[1].symbols
+
 
 def test_html_flow_parser_generic_markdown_page():
     parser = HtmlFlowParser()

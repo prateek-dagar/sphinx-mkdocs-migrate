@@ -1,19 +1,19 @@
 """Tests for Phase 3: Rendered Evidence Extraction (Lossless DOM + Semantic Flow Projection)."""
-import pytest
-from pathlib import Path
+
 from research.html_parity.rendered_evidence import (
     RenderedEvidenceExtractor,
     RenderedHeading,
     RenderedParagraph,
     RenderedTable,
     RenderedCodeBlock,
-    RenderedAdmonition
+    RenderedAdmonition,
 )
 from sphinx_mkdocs_migrate.parsing.doc_ir import DocumentElementType
 
+
 def test_rendered_evidence_extracts_lossless_dom_and_flow():
     """Invariant: Phase 3 extracts both the lossless DOM tree and the chronological semantic flow."""
-    html_text = '''<!DOCTYPE html>
+    html_text = """<!DOCTYPE html>
 <html>
 <head><title>API Docs</title></head>
 <body>
@@ -32,7 +32,7 @@ def test_rendered_evidence_extracts_lossless_dom_and_flow():
     <pre><code class="lang-python">import api\napi.init()</code></pre>
   </article>
 </body>
-</html>'''
+</html>"""
 
     extractor = RenderedEvidenceExtractor()
     evidence = extractor.extract_from_html(html_text, source_path="site/api/index.html")
@@ -52,7 +52,7 @@ def test_rendered_evidence_extracts_lossless_dom_and_flow():
         DocumentElementType.HEADING,
         DocumentElementType.ADMONITION,
         DocumentElementType.TABLE,
-        DocumentElementType.CODE_BLOCK
+        DocumentElementType.CODE_BLOCK,
     ]
     actual_types = [f.element_type for f in flow]
     assert actual_types == expected_types

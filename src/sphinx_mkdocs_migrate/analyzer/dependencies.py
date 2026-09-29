@@ -1,15 +1,30 @@
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import Optional, Dict
 import importlib.metadata
-from ..parsing.requirements import parse_pyproject_toml, parse_requirements_txt, NormalizedManifest
+from ..parsing.requirements import (
+    parse_pyproject_toml,
+    parse_requirements_txt,
+    NormalizedManifest,
+)
 from .models import DependencyAnalysis, VersionEnvironment, PackageVersionInfo
 
 KNOWN_MKDOCS_PACKAGES = {
-    "mkdocs", "mkdocs-material", "mkdocstrings", "mkdocstrings-python",
-    "mkdocs-material-extensions", "pymdown-extensions", "mkdocs-mermaid2-plugin",
-    "mike", "mkdocs-autorefs", "mkdocs-literate-nav", "mkdocs-macros-plugin",
-    "mdx_truly_sane_lists", "mkdocs-awesome-pages-plugin", "mkdocs-gen-files"
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings",
+    "mkdocstrings-python",
+    "mkdocs-material-extensions",
+    "pymdown-extensions",
+    "mkdocs-mermaid2-plugin",
+    "mike",
+    "mkdocs-autorefs",
+    "mkdocs-literate-nav",
+    "mkdocs-macros-plugin",
+    "mdx_truly_sane_lists",
+    "mkdocs-awesome-pages-plugin",
+    "mkdocs-gen-files",
 }
+
 
 class DependencyAnalyzer:
     def __init__(self, project_root: Path):
@@ -32,9 +47,23 @@ class DependencyAnalyzer:
             return None, VersionEnvironment()
 
         to_remove = []
+        source_group_type: Optional[str] = None
+        source_group_name: Optional[str] = None
         for dep in manifest.dependencies:
             if dep.name in KNOWN_MKDOCS_PACKAGES:
                 to_remove.append(dep.name)
+                if not source_group_name and dep.source_location:
+                    if dep.source_location.startswith("dependency-groups."):
+                        source_group_type = "dependency-groups"
+                        source_group_name = dep.source_location.split(".", 1)[1]
+                    elif dep.source_location.startswith(
+                        "project.optional-dependencies."
+                    ):
+                        source_group_type = "optional-dependencies"
+                        source_group_name = dep.source_location.split(".", 2)[2]
+                    elif "requirements" in dep.source_location:
+                        source_group_type = "requirements"
+                        source_group_name = dep.source_location
 
         suggested_to_add = ["sphinx", "myst-parser", "sphinx-design"]
         if "mkdocs-material" in to_remove:
@@ -43,7 +72,9 @@ class DependencyAnalyzer:
         dep_analysis = DependencyAnalysis(
             manifest_type=manifest.manifest_type,
             detected_packages_to_remove=sorted(list(set(to_remove))),
-            suggested_packages_to_add=suggested_to_add
+            suggested_packages_to_add=suggested_to_add,
+            source_group_type=source_group_type,
+            source_group_name=source_group_name,
         )
 
         packages_info: Dict[str, PackageVersionInfo] = {}
@@ -51,6 +82,7 @@ class DependencyAnalyzer:
         mkdocs_ver = None
 
         import sys
+
         current_py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 
         for dep in manifest.dependencies:
@@ -68,7 +100,7 @@ class DependencyAnalyzer:
                     # Basic constraint check if `>=` specified
                     if ">=" in dep.raw_spec:
                         req_ver = dep.raw_spec.split(">=")[-1].strip()
-                        satisfies_constraint = (installed_ver >= req_ver)
+                        satisfies_constraint = installed_ver >= req_ver
                     else:
                         satisfies_constraint = True
                 except Exception:
@@ -80,7 +112,7 @@ class DependencyAnalyzer:
                     resolved_version=installed_ver,
                     resolution_status=status,
                     resolution_source=res_source,
-                    satisfies_declared_constraint=satisfies_constraint
+                    satisfies_declared_constraint=satisfies_constraint,
                 )
                 packages_info[dep.name] = pkg_info
 
@@ -96,7 +128,7 @@ class DependencyAnalyzer:
             python_resolution_status="INSTALLED_RESOLVED",
             packages=packages_info,
             detected_mkdocs_version=mkdocs_ver,
-            detected_plugin_versions=plugin_vers
+            detected_plugin_versions=plugin_vers,
         )
 
         return dep_analysis, version_env

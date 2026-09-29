@@ -1,13 +1,16 @@
 """Subsystem analyzer for mkdocs.yml configuration with robust YAML tag handling."""
-import re
+
 import yaml
 from pathlib import Path
 from typing import Optional, List, Any, Dict
 from .models import ConfigAnalysis, ThemePalette, ThemeFont
 
+
 class SafeMkDocsLoader(yaml.SafeLoader):
     """Custom YAML loader ignoring python-specific tags and environment constructors in mkdocs.yml."""
+
     pass
+
 
 # Ignore all unknown custom YAML tags like !!python/name, !ENV, !relative, etc.
 def _ignore_unknown_tags(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.Node):
@@ -19,8 +22,12 @@ def _ignore_unknown_tags(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.No
         return loader.construct_mapping(node)
     return None
 
+
 SafeMkDocsLoader.add_multi_constructor("!", _ignore_unknown_tags)
-SafeMkDocsLoader.add_multi_constructor("tag:yaml.org,2002:python/", _ignore_unknown_tags)
+SafeMkDocsLoader.add_multi_constructor(
+    "tag:yaml.org,2002:python/", _ignore_unknown_tags
+)
+
 
 class MkDocsConfigAnalyzer:
     def __init__(self, project_root: Path):
@@ -28,12 +35,21 @@ class MkDocsConfigAnalyzer:
 
     def _find_config_file(self) -> Optional[Path]:
         """Discovers mkdocs.yml in root or common documentation subdirectories."""
-        for candidate in ["mkdocs.yml", "mkdocs.yaml", "docs/en/mkdocs.yml", "docs/mkdocs.yml", ".mkdocs.yml", "mkdocs.template.yml"]:
+        for candidate in [
+            "mkdocs.yml",
+            "mkdocs.yaml",
+            "docs/en/mkdocs.yml",
+            "docs/mkdocs.yml",
+            ".mkdocs.yml",
+            "mkdocs.template.yml",
+        ]:
             path = self.project_root / candidate
             if path.exists():
                 return path
         # Fallback search
-        all_ymls = list(self.project_root.glob("*mkdocs*.yml")) + list(self.project_root.glob("*mkdocs*.yaml"))
+        all_ymls = list(self.project_root.glob("*mkdocs*.yml")) + list(
+            self.project_root.glob("*mkdocs*.yaml")
+        )
         if all_ymls:
             return all_ymls[0]
         return None
@@ -68,37 +84,52 @@ class MkDocsConfigAnalyzer:
             theme_name = theme_data.get("name", "mkdocs")
             features = theme_data.get("features", [])
             theme_logo = theme_data.get("logo")
-            theme_icon = theme_data.get("icon") if isinstance(theme_data.get("icon"), dict) else None
+            theme_icon = (
+                theme_data.get("icon")
+                if isinstance(theme_data.get("icon"), dict)
+                else None
+            )
             theme_favicon = theme_data.get("favicon")
             theme_language = theme_data.get("language")
-            
+
             # Palette parsing (can be a dict or list of dicts in Material for MkDocs)
             pal = theme_data.get("palette")
             if isinstance(pal, dict):
-                theme_palette.append(ThemePalette(
-                    scheme=pal.get("scheme"),
-                    primary=pal.get("primary"),
-                    accent=pal.get("accent"),
-                    toggle_icon=pal.get("toggle", {}).get("icon") if isinstance(pal.get("toggle"), dict) else None,
-                    toggle_name=pal.get("toggle", {}).get("name") if isinstance(pal.get("toggle"), dict) else None,
-                ))
+                theme_palette.append(
+                    ThemePalette(
+                        scheme=pal.get("scheme"),
+                        primary=pal.get("primary"),
+                        accent=pal.get("accent"),
+                        toggle_icon=pal.get("toggle", {}).get("icon")
+                        if isinstance(pal.get("toggle"), dict)
+                        else None,
+                        toggle_name=pal.get("toggle", {}).get("name")
+                        if isinstance(pal.get("toggle"), dict)
+                        else None,
+                    )
+                )
             elif isinstance(pal, list):
                 for p in pal:
                     if isinstance(p, dict):
-                        theme_palette.append(ThemePalette(
-                            scheme=p.get("scheme"),
-                            primary=p.get("primary"),
-                            accent=p.get("accent"),
-                            toggle_icon=p.get("toggle", {}).get("icon") if isinstance(p.get("toggle"), dict) else None,
-                            toggle_name=p.get("toggle", {}).get("name") if isinstance(p.get("toggle"), dict) else None,
-                        ))
+                        theme_palette.append(
+                            ThemePalette(
+                                scheme=p.get("scheme"),
+                                primary=p.get("primary"),
+                                accent=p.get("accent"),
+                                toggle_icon=p.get("toggle", {}).get("icon")
+                                if isinstance(p.get("toggle"), dict)
+                                else None,
+                                toggle_name=p.get("toggle", {}).get("name")
+                                if isinstance(p.get("toggle"), dict)
+                                else None,
+                            )
+                        )
 
             # Font parsing
             font_data = theme_data.get("font")
             if isinstance(font_data, dict):
                 theme_font = ThemeFont(
-                    text=font_data.get("text"),
-                    code=font_data.get("code")
+                    text=font_data.get("text"), code=font_data.get("code")
                 )
         else:
             theme_name = "mkdocs"
@@ -131,13 +162,19 @@ class MkDocsConfigAnalyzer:
         if mkdocs_file.parent != self.project_root:
             rel_parent = str(mkdocs_file.parent.relative_to(self.project_root))
             if raw_docs_dir == "docs":
-                adjusted_docs_dir = f"{rel_parent}/docs" if (self.project_root / rel_parent / "docs").exists() else rel_parent
+                adjusted_docs_dir = (
+                    f"{rel_parent}/docs"
+                    if (self.project_root / rel_parent / "docs").exists()
+                    else rel_parent
+                )
             else:
                 adjusted_docs_dir = f"{rel_parent}/{raw_docs_dir}"
         else:
             adjusted_docs_dir = raw_docs_dir
 
-        site_name = data.get("site_name") or self.project_root.name.replace("-", " ").title()
+        site_name = (
+            data.get("site_name") or self.project_root.name.replace("-", " ").title()
+        )
 
         # Extra CSS & JS
         extra_css = data.get("extra_css", [])
@@ -174,5 +211,53 @@ class MkDocsConfigAnalyzer:
             extra_css=extra_css,
             extra_javascript=extra_js,
             extra=extra,
-            raw_config_keys=list(data.keys()) if isinstance(data, dict) else []
+            raw_config_keys=list(data.keys()) if isinstance(data, dict) else [],
         )
+
+
+def detect_obsolete_generator_scripts(
+    project_root: Path,
+    mkdocs_config: Optional[ConfigAnalysis],
+    additional_scripts: Optional[List[str]] = None,
+) -> List[str]:
+    """Detect obsolete MkDocs generator scripts and hooks (e.g. scripts/gen_ref_nav.py) that should be removed.
+
+    These scripts run at build time under MkDocs (e.g., mkdocs-gen-files) to generate virtual stubs.
+    Once Sphinx autodoc/autosummary is configured and MkDocs dependencies are removed, these scripts
+    become obsolete, broken, and trigger repo lint failures.
+    """
+    if not mkdocs_config:
+        return []
+
+    candidate_scripts: set[str] = set()
+    gen_cfg = mkdocs_config.plugins_config.get("gen-files", {})
+    if isinstance(gen_cfg, dict):
+        for s in gen_cfg.get("scripts", []):
+            if isinstance(s, str):
+                candidate_scripts.add(s)
+
+    if additional_scripts:
+        for s in additional_scripts:
+            if isinstance(s, str):
+                candidate_scripts.add(s)
+
+    for hook in mkdocs_config.custom_hooks or []:
+        if isinstance(hook, str):
+            candidate_scripts.add(hook)
+
+    obsolete: List[str] = []
+    for s_rel in sorted(candidate_scripts):
+        s_path = project_root / s_rel
+        if s_path.is_file():
+            try:
+                content = s_path.read_text(encoding="utf-8")
+            except Exception:
+                content = ""
+            if (
+                "mkdocs" in content
+                or "mkdocstrings" in content
+                or (isinstance(gen_cfg, dict) and s_rel in gen_cfg.get("scripts", []))
+            ):
+                obsolete.append(s_rel)
+
+    return obsolete

@@ -1,16 +1,19 @@
 """Generic declarative rule engine for evaluating DocumentIR trees without procedural construct branching."""
+
 import hashlib
 from typing import List, Dict, Optional
 from ..parsing.markdown_ir import BaseIRNode, NodeKind, DocumentIR
-from ..analyzer.models import Classification
 from .models import MigrationRule, RuleEvaluation, MigrationAction
 from .catalog import DEFAULT_RULES
+
 
 class MigrationRuleEngine:
     """Evaluates DocumentIR nodes purely by interpreting declarative MigrationRule contracts."""
 
     def __init__(self, custom_rules: Optional[List[MigrationRule]] = None):
-        self.rules: List[MigrationRule] = custom_rules if custom_rules is not None else list(DEFAULT_RULES)
+        self.rules: List[MigrationRule] = (
+            custom_rules if custom_rules is not None else list(DEFAULT_RULES)
+        )
         self._rules_by_kind: Dict[NodeKind, List[MigrationRule]] = {}
         for rule in self.rules:
             self._rules_by_kind.setdefault(rule.source_kind, []).append(rule)
@@ -32,15 +35,17 @@ class MigrationRuleEngine:
                 evaluations.append(res)
         return evaluations
 
-    def create_actions(self, doc_ir: DocumentIR, raw_lines: Optional[List[str]] = None) -> List[MigrationAction]:
+    def create_actions(
+        self, doc_ir: DocumentIR, raw_lines: Optional[List[str]] = None
+    ) -> List[MigrationAction]:
         """Generates normalized MigrationAction items with stable source-span IDs and fingerprints."""
         actions: List[MigrationAction] = []
-        
+
         # Helper to compute exact source span text
         def get_span_fingerprint(start_l: int, end_l: int) -> str:
             if raw_lines and 1 <= start_l <= len(raw_lines):
                 end_idx = min(end_l, len(raw_lines))
-                span_text = "\n".join(raw_lines[start_l - 1:end_idx])
+                span_text = "\n".join(raw_lines[start_l - 1 : end_idx])
                 return hashlib.sha256(span_text.encode("utf-8")).hexdigest()[:16]
             return ""
 
@@ -49,13 +54,23 @@ class MigrationRuleEngine:
             self._collect_actions(node, doc_ir.file_path, get_span_fingerprint, actions)
         return actions
 
-    def _collect_actions(self, node: BaseIRNode, file_path: str, fp_helper, actions: List[MigrationAction]):
+    def _collect_actions(
+        self,
+        node: BaseIRNode,
+        file_path: str,
+        fp_helper,
+        actions: List[MigrationAction],
+    ):
         evaluation = self.evaluate_node(node)
         if evaluation is not None:
-            stable_span_key = f"{file_path}:{node.start_line}-{node.end_line}:{evaluation.rule_id}"
+            stable_span_key = (
+                f"{file_path}:{node.start_line}-{node.end_line}:{evaluation.rule_id}"
+            )
             action_id = f"act_{hashlib.sha256(stable_span_key.encode('utf-8')).hexdigest()[:12]}"
-            
-            target_directive = evaluation.target.directive_name if evaluation.target else None
+
+            target_directive = (
+                evaluation.target.directive_name if evaluation.target else None
+            )
             action = MigrationAction(
                 action_id=action_id,
                 rule_id=evaluation.rule_id,
@@ -70,7 +85,7 @@ class MigrationRuleEngine:
                 required_packages=evaluation.required_packages,
                 preserves=evaluation.preserved_attributes,
                 manual_instruction=evaluation.action_item,
-                description=evaluation.rationale
+                description=evaluation.rationale,
             )
             actions.append(action)
 

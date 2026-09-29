@@ -1,26 +1,20 @@
 """Tests for Phase 2: Strongly-Typed Semantic Flow Extraction, Invariants, and Golden IR Fixtures."""
-import pytest
-from pathlib import Path
+
 from sphinx_mkdocs_migrate.parsing.flow_extractor import DocumentFlowExtractor
 from sphinx_mkdocs_migrate.parsing.doc_ir import (
     DocumentElementType,
-    HeadingElement,
-    ParagraphElement,
-    CodeBlockElement,
     AdmonitionElement,
     ListElement,
-    ListItemElement,
     ApiDocumentationRequest,
     ApiObjectKind,
     MemberSelection,
     RawHtmlElement,
-    UnknownElement,
-    DOCUMENTATION_IR_SCHEMA_VERSION
 )
+
 
 def test_flow_extractor_preserves_exact_inter_block_order():
     """Invariant: Inter-block heterogeneous sequence (Heading -> Paragraph -> API -> Paragraph -> Code -> API -> Heading) is strictly preserved."""
-    markdown_text = '''# API Reference
+    markdown_text = """# API Reference
 
 Introductory prose describing the package.
 
@@ -39,7 +33,7 @@ formatter = BaseJsonFormatter()
 ## Conclusion
 
 Final concluding remarks.
-'''
+"""
     extractor = DocumentFlowExtractor(file_path="docs/api.md")
     page = extractor.extract_from_text(markdown_text)
 
@@ -79,9 +73,10 @@ Final concluding remarks.
     assert api_elem_2.content.object_path == "pythonjsonlogger.core.merge_record_extra"
     assert api_elem_2.content.object_kind == ApiObjectKind.FUNCTION
 
+
 def test_flow_extractor_raw_html_and_admonition_preservation():
     """Invariant: Raw HTML and Admonitions are preserved without silent disappearance."""
-    markdown_text = '''# Guide
+    markdown_text = """# Guide
 
 !!! warning "Deprecated"
     This feature is deprecated in 4.0.
@@ -89,7 +84,7 @@ def test_flow_extractor_raw_html_and_admonition_preservation():
 <div class="custom-card">
     <span>Custom HTML</span>
 </div>
-'''
+"""
     extractor = DocumentFlowExtractor(file_path="docs/guide.md")
     page = extractor.extract_from_text(markdown_text)
 
@@ -109,9 +104,10 @@ def test_flow_extractor_raw_html_and_admonition_preservation():
     assert isinstance(raw, RawHtmlElement)
     assert "custom-card" in raw.raw_html
 
+
 def test_flow_extractor_mkautodoc_and_structured_lists():
     """Invariant: mkautodoc directives, :docstring: flags, explicit member lists, and ordered/unordered lists are normalized."""
-    markdown_text = '''# Developer Interface
+    markdown_text = """# Developer Interface
 
 ## Helper Functions
 
@@ -131,10 +127,9 @@ def test_flow_extractor_mkautodoc_and_structured_lists():
 * `def __init__(...)`
 * `.status_code` - **int**
 * `.headers` - **Headers**
-'''
+"""
     extractor = DocumentFlowExtractor(
-        file_path="docs/api.md",
-        mkdocs_config={"markdown_extensions": ["mkautodoc"]}
+        file_path="docs/api.md", mkdocs_config={"markdown_extensions": ["mkautodoc"]}
     )
     page = extractor.extract_from_text(markdown_text)
     elements = page.flow.elements
@@ -166,7 +161,15 @@ def test_flow_extractor_mkautodoc_and_structured_lists():
     assert class_req.handler == "mkautodoc"
     assert class_req.include_docstring is True
     assert class_req.member_selection == MemberSelection.EXPLICIT
-    assert class_req.explicit_members == ["headers", "cookies", "params", "auth", "request", "get", "close"]
+    assert class_req.explicit_members == [
+        "headers",
+        "cookies",
+        "params",
+        "auth",
+        "request",
+        "get",
+        "close",
+    ]
 
     # Verify list typing
     list_elem = elements[7].content

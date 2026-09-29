@@ -1,5 +1,5 @@
 """Tests for Generic DocumentationBuildGraph, Stage Topology, and Locale Overlay Models."""
-import pytest
+
 from sphinx_mkdocs_migrate.parsing.doc_ir import (
     BuildStage,
     BuildStageType,
@@ -10,8 +10,8 @@ from sphinx_mkdocs_migrate.parsing.doc_ir import (
     LocaleDocumentSpec,
     DocumentationBuildGraph,
     DocumentationSiteGraph,
-    DOCUMENTATION_IR_SCHEMA_VERSION,
 )
+
 
 def test_build_graph_topological_execution_order_and_artifacts():
     """Verify build stages execute in strict topological dependency order with explicit BuildArtifacts."""
@@ -24,8 +24,11 @@ def test_build_graph_topological_execution_order_and_artifacts():
             outputs=["docs_src/**/*_py39.py", "docs_src/**/*_py310.py"],
             depends_on=[],
             strategy="RUFF_TARGET_SYNTAX_TRANSFORM",
-            consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.TEST_ARTIFACT},
-            rationale="Generate backwards-compatible Python syntax variants for tutorial tabs."
+            consumer_kinds={
+                ArtifactConsumerKind.SITE_ARTIFACT,
+                ArtifactConsumerKind.TEST_ARTIFACT,
+            },
+            rationale="Generate backwards-compatible Python syntax variants for tutorial tabs.",
         ),
         "stage_data_sponsors": BuildStage(
             stage_id="stage_data_sponsors",
@@ -36,7 +39,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             depends_on=[],
             strategy="JINJA_TEMPLATE_RENDER",
             consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
-            rationale="Synthesize banner sponsor partial from structured YAML data."
+            rationale="Synthesize banner sponsor partial from structured YAML data.",
         ),
         "stage_locale_overlay_de": BuildStage(
             stage_id="stage_locale_overlay_de",
@@ -48,7 +51,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             depends_on=["stage_source_variants", "stage_data_sponsors"],
             strategy="CANONICAL_OVERLAY_WITH_FALLBACK_NOTICE",
             consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
-            rationale="Overlay German translations over English canonical tree with fallback notices."
+            rationale="Overlay German translations over English canonical tree with fallback notices.",
         ),
         "stage_config_synthesis_de": BuildStage(
             stage_id="stage_config_synthesis_de",
@@ -60,7 +63,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             depends_on=["stage_locale_overlay_de"],
             strategy="LOCALE_CONFIG_DERIVATION",
             consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
-            rationale="Synthesize German-specific configuration with locale URLs and language strings."
+            rationale="Synthesize German-specific configuration with locale URLs and language strings.",
         ),
         "stage_render_de": BuildStage(
             stage_id="stage_render_de",
@@ -72,7 +75,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             depends_on=["stage_config_synthesis_de"],
             strategy="SPHINX_HTML_BUILD",
             consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT},
-            rationale="Compile staged German documentation tree into HTML output."
+            rationale="Compile staged German documentation tree into HTML output.",
         ),
         "stage_site_assembly": BuildStage(
             stage_id="stage_site_assembly",
@@ -82,8 +85,11 @@ def test_build_graph_topological_execution_order_and_artifacts():
             outputs=["site/**"],
             depends_on=["stage_render_de"],
             strategy="ROOT_ASSET_AND_MULTILINGUAL_TOPOLOGY",
-            consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.DEPLOYMENT_ARTIFACT},
-            rationale="Assemble final root site tree with shared assets and locale directories."
+            consumer_kinds={
+                ArtifactConsumerKind.SITE_ARTIFACT,
+                ArtifactConsumerKind.DEPLOYMENT_ARTIFACT,
+            },
+            rationale="Assemble final root site tree with shared assets and locale directories.",
         ),
         "stage_deployment_assembly": BuildStage(
             stage_id="stage_deployment_assembly",
@@ -94,7 +100,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             depends_on=["stage_site_assembly"],
             strategy="SITEMAP_AND_REDIRECT_ROUTING",
             consumer_kinds={ArtifactConsumerKind.DEPLOYMENT_ARTIFACT},
-            rationale="Generate deployment routing, root index redirection, and search sitemaps."
+            rationale="Generate deployment routing, root index redirection, and search sitemaps.",
         ),
         "stage_readme_side_output": BuildStage(
             stage_id="stage_readme_side_output",
@@ -105,7 +111,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             depends_on=[],
             strategy="EXTRACT_INDEX_TO_README",
             consumer_kinds={ArtifactConsumerKind.REPOSITORY_ARTIFACT},
-            rationale="Extract canonical introduction markdown to repository README.md."
+            rationale="Extract canonical introduction markdown to repository README.md.",
         ),
     }
 
@@ -116,9 +122,12 @@ def test_build_graph_topological_execution_order_and_artifacts():
             artifact_kind="generated_variant",
             producer_stage="stage_source_variants",
             consumer_stages=["stage_locale_overlay_de"],
-            consumer_kinds={ArtifactConsumerKind.SITE_ARTIFACT, ArtifactConsumerKind.TEST_ARTIFACT},
+            consumer_kinds={
+                ArtifactConsumerKind.SITE_ARTIFACT,
+                ArtifactConsumerKind.TEST_ARTIFACT,
+            },
             is_intermediate=True,
-            provenance_source="docs_src/tutorial001.py"
+            provenance_source="docs_src/tutorial001.py",
         )
     }
 
@@ -131,7 +140,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             effective_source="docs/de/docs/index.md",
             is_fallback=False,
             translation_notice_required=False,
-            translation_status="TRANSLATED"
+            translation_status="TRANSLATED",
         ),
         "tutorial/body": LocaleDocumentSpec(
             logical_route="tutorial/body",
@@ -141,8 +150,8 @@ def test_build_graph_topological_execution_order_and_artifacts():
             effective_source="docs/en/docs/tutorial/body.md",
             is_fallback=True,
             translation_notice_required=True,
-            translation_status="FALLBACK"
-        )
+            translation_status="FALLBACK",
+        ),
     }
 
     locales = {
@@ -151,7 +160,7 @@ def test_build_graph_topological_execution_order_and_artifacts():
             is_canonical=True,
             canonical_source_dir="docs/en/docs",
             fallback_locale=None,
-            inject_missing_notice=False
+            inject_missing_notice=False,
         ),
         "de": LocaleOverlaySpec(
             locale="de",
@@ -161,30 +170,46 @@ def test_build_graph_topological_execution_order_and_artifacts():
             fallback_locale="en",
             inject_missing_notice=True,
             excluded_paths=["reference/", "release-notes.md"],
-            documents=de_docs
-        )
+            documents=de_docs,
+        ),
     }
 
-    build_graph = DocumentationBuildGraph(stages=stages, artifacts=artifacts, locales=locales)
+    build_graph = DocumentationBuildGraph(
+        stages=stages, artifacts=artifacts, locales=locales
+    )
     site_graph = DocumentationSiteGraph(build_graph=build_graph)
 
     # Invariant 1: Topologically sorted execution order
     order = build_graph.execution_order()
     assert order.index("stage_source_variants") < order.index("stage_locale_overlay_de")
     assert order.index("stage_data_sponsors") < order.index("stage_locale_overlay_de")
-    assert order.index("stage_locale_overlay_de") < order.index("stage_config_synthesis_de")
+    assert order.index("stage_locale_overlay_de") < order.index(
+        "stage_config_synthesis_de"
+    )
     assert order.index("stage_config_synthesis_de") < order.index("stage_render_de")
     assert order.index("stage_render_de") < order.index("stage_site_assembly")
     assert order.index("stage_site_assembly") < order.index("stage_deployment_assembly")
 
     # Invariant 2: Multi-consumer support
-    assert ArtifactConsumerKind.TEST_ARTIFACT in stages["stage_source_variants"].consumer_kinds
-    assert ArtifactConsumerKind.REPOSITORY_ARTIFACT in stages["stage_readme_side_output"].consumer_kinds
-    assert ArtifactConsumerKind.DEPLOYMENT_ARTIFACT in stages["stage_deployment_assembly"].consumer_kinds
+    assert (
+        ArtifactConsumerKind.TEST_ARTIFACT
+        in stages["stage_source_variants"].consumer_kinds
+    )
+    assert (
+        ArtifactConsumerKind.REPOSITORY_ARTIFACT
+        in stages["stage_readme_side_output"].consumer_kinds
+    )
+    assert (
+        ArtifactConsumerKind.DEPLOYMENT_ARTIFACT
+        in stages["stage_deployment_assembly"].consumer_kinds
+    )
 
     # Invariant 3: Explicit Lineage and Fallback Tracking
     assert build_graph.locales["de"].documents["tutorial/body"].is_fallback is True
-    assert build_graph.locales["de"].documents["tutorial/body"].translation_status == "FALLBACK"
+    assert (
+        build_graph.locales["de"].documents["tutorial/body"].translation_status
+        == "FALLBACK"
+    )
     assert build_graph.locales["de"].documents["index"].is_fallback is False
 
     # Invariant 4: Graph Integrity & Locale Validation checks
@@ -201,9 +226,25 @@ def test_build_graph_topological_execution_order_and_artifacts():
 
 def test_multilingual_13_locale_pipeline_fidelity_and_invariants():
     """Verify the extracted multilingual BuildGraph meets all structural and lineage invariants dynamically."""
-    from tests.fixtures.multilingual_pipeline_graph import build_multilingual_pipeline_graph
+    from tests.fixtures.multilingual_pipeline_graph import (
+        build_multilingual_pipeline_graph,
+    )
 
-    test_locales = ["en", "de", "es", "fa", "fr", "ja", "ko", "pt", "ru", "tr", "uk", "zh", "zh-hant"]
+    test_locales = [
+        "en",
+        "de",
+        "es",
+        "fa",
+        "fr",
+        "ja",
+        "ko",
+        "pt",
+        "ru",
+        "tr",
+        "uk",
+        "zh",
+        "zh-hant",
+    ]
     test_excluded = ["reference/", "release-notes.md"]
 
     graph = build_multilingual_pipeline_graph(
@@ -227,11 +268,17 @@ def test_multilingual_13_locale_pipeline_fidelity_and_invariants():
     # 3. Sponsor Partial Lifted Provenance & Materialized Path
     sponsor_art = graph.artifacts["art_sponsor_partial"]
     assert sponsor_art.logical_role == "sponsor_banner_partial"
-    assert sponsor_art.materialized_path == "docs/en/overrides/partials/banner-sponsors.html"
+    assert (
+        sponsor_art.materialized_path
+        == "docs/en/overrides/partials/banner-sponsors.html"
+    )
     assert len(sponsor_art.consumer_stages) == 13
     for lang in test_locales:
         assert f"build_locale_staging_{lang}" in sponsor_art.consumer_stages
-        assert "build_render_sponsor_partial" in graph.stages[f"build_locale_staging_{lang}"].depends_on
+        assert (
+            "build_render_sponsor_partial"
+            in graph.stages[f"build_locale_staging_{lang}"].depends_on
+        )
 
     # 4. Source Variants: Explicit py39 and py310 Artifact Nodes & External Consumers
     var_stage = graph.stages["prep_generate_source_variants"]
@@ -252,7 +299,9 @@ def test_multilingual_13_locale_pipeline_fidelity_and_invariants():
     # 5. Pre-build Repository Synchronization
     update_lang_stage = graph.stages["prep_update_languages"]
     assert update_lang_stage.strategy == "SYNC_LANGUAGE_MATRIX"
-    assert update_lang_stage.source_provenance_symbol == "scripts/docs.py:update_languages"
+    assert (
+        update_lang_stage.source_provenance_symbol == "scripts/docs.py:update_languages"
+    )
 
     # 6. Source Renderer Strategy (Pure ZENSICAL, not target Sphinx)
     for lang in test_locales:
@@ -280,13 +329,19 @@ def test_multilingual_13_locale_pipeline_fidelity_and_invariants():
     # 9. Topological Execution Order Verification
     exec_order = graph.execution_order()
     assert len(exec_order) == 46
-    assert exec_order.index("build_render_sponsor_partial") < exec_order.index("build_locale_staging_en")
+    assert exec_order.index("build_render_sponsor_partial") < exec_order.index(
+        "build_locale_staging_en"
+    )
     for lang in test_locales:
-        assert exec_order.index(f"build_locale_staging_{lang}") < exec_order.index(f"build_config_synthesis_{lang}")
-        assert exec_order.index(f"build_config_synthesis_{lang}") < exec_order.index(f"build_render_locale_{lang}")
-        assert exec_order.index(f"build_render_locale_{lang}") < exec_order.index("build_site_assembly")
-    assert exec_order.index("build_site_assembly") < exec_order.index("build_deployment_assembly")
-
-
-
-
+        assert exec_order.index(f"build_locale_staging_{lang}") < exec_order.index(
+            f"build_config_synthesis_{lang}"
+        )
+        assert exec_order.index(f"build_config_synthesis_{lang}") < exec_order.index(
+            f"build_render_locale_{lang}"
+        )
+        assert exec_order.index(f"build_render_locale_{lang}") < exec_order.index(
+            "build_site_assembly"
+        )
+    assert exec_order.index("build_site_assembly") < exec_order.index(
+        "build_deployment_assembly"
+    )

@@ -1,12 +1,15 @@
 """Constants and comprehensive color/theme mappings for MkDocs to Sphinx migration."""
+
 from enum import Enum
-from typing import Dict, Any
+from typing import Dict
+
 
 class ThemeScheme(str, Enum):
     DEFAULT = "default"
     SLATE = "slate"
     LIGHT = "light"
     DARK = "dark"
+
 
 # Exhaustive official Material for MkDocs color palette (Primary & Accent)
 # Sourced directly from Material Design color system used by squidfunk/mkdocs-material
@@ -55,6 +58,7 @@ MKDOCS_MATERIAL_ACCENTS: Dict[str, str] = {
     "orange": "#ffab40",
     "deep-orange": "#ff6e40",
 }
+
 
 def resolve_material_color(color_name: str, is_accent: bool = False) -> str:
     """Resolves a MkDocs Material color name to its hex code, or returns the raw string if already hex/rgb."""

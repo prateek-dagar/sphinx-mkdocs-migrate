@@ -1,14 +1,14 @@
 """Project-level orchestration analyzer producing complete, effective MigrationAnalysis."""
+
 import ast
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional
 
 from .mkdocs import MkDocsConfigAnalyzer
 from .dependencies import DependencyAnalyzer
 from .navigation import NavigationAnalyzer
 from .ci import CIAnalyzer
 from .markdown import MarkdownAnalyzer
-from ..parsing.markdown import MarkdownParser
 from ..parsing.flow_extractor import DocumentFlowExtractor
 from ..parsing.doc_ir import (
     DocumentationSiteGraph,
@@ -35,6 +35,7 @@ from .models import (
     RequirementCategory,
     RequirementDisposition,
 )
+
 
 class ProjectAnalyzer:
     """Orchestrates comprehensive factual inspection, effective configuration, and migration requirement derivation."""
@@ -100,7 +101,11 @@ class ProjectAnalyzer:
                 if elem.element_type == DocumentElementType.API_REQUEST:
                     api_requests.append(elem.content)
 
-            logical_route = str(md_file.relative_to(docs_dir).with_suffix("")) if md_file.is_relative_to(docs_dir) else md_file.stem
+            logical_route = (
+                str(md_file.relative_to(docs_dir).with_suffix(""))
+                if md_file.is_relative_to(docs_dir)
+                else md_file.stem
+            )
             site_pages[logical_route] = page
 
         # 3. Resolve API Objects (Symbol extraction from Python AST)
@@ -111,52 +116,63 @@ class ProjectAnalyzer:
         if nav and nav.has_nav:
             nav_node = self._build_nav_node(nav.tree)
 
-        site_graph = DocumentationSiteGraph(
-            pages=site_pages,
-            navigation=nav_node
-        )
+        site_graph = DocumentationSiteGraph(pages=site_pages, navigation=nav_node)
 
         # 5. Extract Capabilities and Unresolved Items
         capabilities, unresolved = self._resolve_capabilities(config)
 
         # 6. Derive Migration Requirements
-        requirements = self._derive_migration_requirements(config, flows, api_requests, resolved_modules, capabilities)
+        requirements = self._derive_migration_requirements(
+            config, flows, api_requests, resolved_modules, capabilities
+        )
 
         # 7. Subsystem Summaries
         summaries: List[SubsystemSummary] = []
-        transform_cnt = sum(1 for f in findings if f.classification == Classification.TRANSFORM)
-        summaries.append(SubsystemSummary(
-            name="Markdown Content",
-            status="AUTOMATIC" if transform_cnt > 0 else "PRESERVED",
-            details=f"{len(md_files)} files, {transform_cnt} construct transformations identified"
-        ))
+        transform_cnt = sum(
+            1 for f in findings if f.classification == Classification.TRANSFORM
+        )
+        summaries.append(
+            SubsystemSummary(
+                name="Markdown Content",
+                status="AUTOMATIC" if transform_cnt > 0 else "PRESERVED",
+                details=f"{len(md_files)} files, {transform_cnt} construct transformations identified",
+            )
+        )
 
         if nav.has_nav:
             nav_status = "AUTOMATIC" if not nav.missing_references else "REVIEW"
-            summaries.append(SubsystemSummary(
-                name="Navigation (nav)",
-                status=nav_status,
-                details=f"{nav.total_nav_entries} entries, depth {nav.max_depth}"
-            ))
+            summaries.append(
+                SubsystemSummary(
+                    name="Navigation (nav)",
+                    status=nav_status,
+                    details=f"{nav.total_nav_entries} entries, depth {nav.max_depth}",
+                )
+            )
 
         if deps and deps.manifest_type:
-            summaries.append(SubsystemSummary(
-                name="Dependencies",
-                status="REVIEW",
-                details=f"{len(deps.detected_packages_to_remove)} packages to remove, {len(deps.suggested_packages_to_add)} to add"
-            ))
+            summaries.append(
+                SubsystemSummary(
+                    name="Dependencies",
+                    status="REVIEW",
+                    details=f"{len(deps.detected_packages_to_remove)} packages to remove, {len(deps.suggested_packages_to_add)} to add",
+                )
+            )
 
         if ci.ci_system:
-            summaries.append(SubsystemSummary(
-                name="CI/CD & Hosting",
-                status="REVIEW",
-                details=f"{ci.ci_system} ({len(ci.workflow_files)} workflows)"
-            ))
+            summaries.append(
+                SubsystemSummary(
+                    name="CI/CD & Hosting",
+                    status="REVIEW",
+                    details=f"{ci.ci_system} ({len(ci.workflow_files)} workflows)",
+                )
+            )
 
         manual_items: List[str] = []
         for f in findings:
             if f.classification == Classification.MANUAL:
-                manual_items.append(f"{f.file_path}:{f.line_number} ({f.construct_type}) - Manual review required")
+                manual_items.append(
+                    f"{f.file_path}:{f.line_number} ({f.construct_type}) - Manual review required"
+                )
 
         return ProjectAnalysisReport(
             project_root=str(self.project_root),
@@ -177,7 +193,7 @@ class ProjectAnalyzer:
             migration_requirements=requirements,
             unresolved_items=unresolved,
             subsystem_summaries=summaries,
-            manual_action_items=manual_items
+            manual_action_items=manual_items,
         )
 
     def _resolve_effective_config(self, cfg) -> ResolvedEffectiveConfig:
@@ -192,8 +208,12 @@ class ProjectAnalyzer:
                 configured_value=cfg.theme_name if theme_configured else None,
                 default_value="mkdocs",
                 effective_value=cfg.theme_name or "mkdocs",
-                state=PropertyResolutionState.CONFIGURED if theme_configured else PropertyResolutionState.DEFAULTED,
-                provenance=ResolutionProvenance(source_type="mkdocs.yml" if theme_configured else "mkdocs_default")
+                state=PropertyResolutionState.CONFIGURED
+                if theme_configured
+                else PropertyResolutionState.DEFAULTED,
+                provenance=ResolutionProvenance(
+                    source_type="mkdocs.yml" if theme_configured else "mkdocs_default"
+                ),
             )
 
             # 2. Docs Dir
@@ -203,8 +223,14 @@ class ProjectAnalyzer:
                 configured_value=cfg.docs_dir if docs_dir_configured else None,
                 default_value="docs",
                 effective_value=cfg.docs_dir or "docs",
-                state=PropertyResolutionState.CONFIGURED if docs_dir_configured else PropertyResolutionState.DEFAULTED,
-                provenance=ResolutionProvenance(source_type="mkdocs.yml" if docs_dir_configured else "mkdocs_default")
+                state=PropertyResolutionState.CONFIGURED
+                if docs_dir_configured
+                else PropertyResolutionState.DEFAULTED,
+                provenance=ResolutionProvenance(
+                    source_type="mkdocs.yml"
+                    if docs_dir_configured
+                    else "mkdocs_default"
+                ),
             )
 
             # 3. Site Name & Metadata
@@ -214,8 +240,12 @@ class ProjectAnalyzer:
                 configured_value=cfg.site_name if site_name_configured else None,
                 default_value=None,
                 effective_value=cfg.site_name,
-                state=PropertyResolutionState.CONFIGURED if site_name_configured else PropertyResolutionState.DEFAULTED,
-                provenance=ResolutionProvenance(source_type="mkdocs.yml" if site_name_configured else "derived")
+                state=PropertyResolutionState.CONFIGURED
+                if site_name_configured
+                else PropertyResolutionState.DEFAULTED,
+                provenance=ResolutionProvenance(
+                    source_type="mkdocs.yml" if site_name_configured else "derived"
+                ),
             )
 
             if cfg.site_url:
@@ -225,7 +255,7 @@ class ProjectAnalyzer:
                     default_value=None,
                     effective_value=cfg.site_url,
                     state=PropertyResolutionState.CONFIGURED,
-                    provenance=ResolutionProvenance(source_type="mkdocs.yml")
+                    provenance=ResolutionProvenance(source_type="mkdocs.yml"),
                 )
 
             if cfg.repo_url:
@@ -235,7 +265,7 @@ class ProjectAnalyzer:
                     default_value=None,
                     effective_value=cfg.repo_url,
                     state=PropertyResolutionState.CONFIGURED,
-                    provenance=ResolutionProvenance(source_type="mkdocs.yml")
+                    provenance=ResolutionProvenance(source_type="mkdocs.yml"),
                 )
 
             # 4. Theme Features
@@ -246,7 +276,9 @@ class ProjectAnalyzer:
                     default_value=False,
                     effective_value=True,
                     state=PropertyResolutionState.CONFIGURED,
-                    provenance=ResolutionProvenance(source_type="mkdocs.yml", source_location="theme.features")
+                    provenance=ResolutionProvenance(
+                        source_type="mkdocs.yml", source_location="theme.features"
+                    ),
                 )
 
             # 5. Theme Palette
@@ -257,7 +289,9 @@ class ProjectAnalyzer:
                     default_value=[],
                     effective_value=[p.model_dump() for p in cfg.theme_palette],
                     state=PropertyResolutionState.CONFIGURED,
-                    provenance=ResolutionProvenance(source_type="mkdocs.yml", source_location="theme.palette")
+                    provenance=ResolutionProvenance(
+                        source_type="mkdocs.yml", source_location="theme.palette"
+                    ),
                 )
 
             # 6. Theme Icon & Logo
@@ -268,12 +302,16 @@ class ProjectAnalyzer:
                     default_value=None,
                     effective_value=cfg.theme_icon,
                     state=PropertyResolutionState.CONFIGURED,
-                    provenance=ResolutionProvenance(source_type="mkdocs.yml", source_location="theme.icon")
+                    provenance=ResolutionProvenance(
+                        source_type="mkdocs.yml", source_location="theme.icon"
+                    ),
                 )
 
         return ResolvedEffectiveConfig(properties=props)
 
-    def _resolve_api_symbols(self, requests: List[ApiDocumentationRequest]) -> Dict[str, ResolvedApiModule]:
+    def _resolve_api_symbols(
+        self, requests: List[ApiDocumentationRequest]
+    ) -> Dict[str, ResolvedApiModule]:
         modules: Dict[str, ResolvedApiModule] = {}
         for req in requests:
             mod_path = req.object_path
@@ -283,14 +321,16 @@ class ProjectAnalyzer:
                 module_path=mod_path,
                 symbols=symbols,
                 summary_mode=req.summary_mode.value,
-                explicit_members=req.explicit_members
+                explicit_members=req.explicit_members,
             )
         return modules
 
     def _find_module_source_file(self, module_path: str) -> Optional[Path]:
         parts = module_path.split(".")
         candidates = [
-            self.project_root / "src" / "/".join(parts).replace("/", Path("/").name + ".py"),
+            self.project_root
+            / "src"
+            / "/".join(parts).replace("/", Path("/").name + ".py"),
             self.project_root / "/".join(parts).replace("/", Path("/").name + ".py"),
             self.project_root / "src" / Path(*parts).with_suffix(".py"),
             self.project_root / Path(*parts).with_suffix(".py"),
@@ -300,10 +340,14 @@ class ProjectAnalyzer:
                 return c
         return None
 
-    def _extract_symbols_from_ast(self, file_path: Path) -> Dict[str, ResolvedApiSymbol]:
+    def _extract_symbols_from_ast(
+        self, file_path: Path
+    ) -> Dict[str, ResolvedApiSymbol]:
         symbols: Dict[str, ResolvedApiSymbol] = {}
         try:
-            tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
+            tree = ast.parse(
+                file_path.read_text(encoding="utf-8"), filename=str(file_path)
+            )
             for node in tree.body:
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     # Extract formatted signature from arguments
@@ -315,10 +359,14 @@ class ProjectAnalyzer:
                         signature=sig,
                         docstring=ast.get_docstring(node),
                         source_file=str(file_path),
-                        source_line=node.lineno
+                        source_line=node.lineno,
                     )
                 elif isinstance(node, ast.ClassDef):
-                    method_names = [n.name for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+                    method_names = [
+                        n.name
+                        for n in node.body
+                        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    ]
                     symbols[node.name] = ResolvedApiSymbol(
                         fully_qualified_name=node.name,
                         symbol_kind="class",
@@ -326,7 +374,7 @@ class ProjectAnalyzer:
                         docstring=ast.get_docstring(node),
                         source_file=str(file_path),
                         source_line=node.lineno,
-                        member_names=method_names
+                        member_names=method_names,
                     )
                 elif isinstance(node, ast.Assign):
                     for target in node.targets:
@@ -337,7 +385,7 @@ class ProjectAnalyzer:
                                 signature=target.id,
                                 docstring=None,
                                 source_file=str(file_path),
-                                source_line=node.lineno
+                                source_line=node.lineno,
                             )
                 elif isinstance(node, ast.AnnAssign):
                     if isinstance(node.target, ast.Name):
@@ -347,7 +395,7 @@ class ProjectAnalyzer:
                             signature=node.target.id,
                             docstring=None,
                             source_file=str(file_path),
-                            source_line=node.lineno
+                            source_line=node.lineno,
                         )
         except Exception:
             pass
@@ -361,31 +409,43 @@ class ProjectAnalyzer:
             child = NavigationNode(
                 construct_id=f"nav_node_{i}",
                 label=getattr(item, "title", "Page"),
-                page_route=getattr(item, "path", None)
+                page_route=getattr(item, "path", None),
             )
             root.children.append(child)
         return root
 
-    def _resolve_capabilities(self, cfg) -> tuple[List[ResolvedCapabilityItem], List[ResolvedUnresolvedItem]]:
+    def _resolve_capabilities(
+        self, cfg
+    ) -> tuple[List[ResolvedCapabilityItem], List[ResolvedUnresolvedItem]]:
         caps: List[ResolvedCapabilityItem] = []
         unresolved: List[ResolvedUnresolvedItem] = []
 
         if cfg:
             for p in cfg.plugins:
-                p_name = p if isinstance(p, str) else list(p.keys())[0] if isinstance(p, dict) else str(p)
+                p_name = (
+                    p
+                    if isinstance(p, str)
+                    else list(p.keys())[0]
+                    if isinstance(p, dict)
+                    else str(p)
+                )
                 if p_name in ("search", "mkdocstrings", "autorefs"):
-                    caps.append(ResolvedCapabilityItem(
-                        capability_name=f"plugin:{p_name}",
-                        source_feature=p_name,
-                        state=PropertyResolutionState.CONFIGURED,
-                        target_strategy="SPHINX_EXTENSION_MAPPING"
-                    ))
+                    caps.append(
+                        ResolvedCapabilityItem(
+                            capability_name=f"plugin:{p_name}",
+                            source_feature=p_name,
+                            state=PropertyResolutionState.CONFIGURED,
+                            target_strategy="SPHINX_EXTENSION_MAPPING",
+                        )
+                    )
                 else:
-                    unresolved.append(ResolvedUnresolvedItem(
-                        item_id=f"plugin:{p_name}",
-                        category="plugin_option",
-                        rationale=f"Third-party plugin '{p_name}' requires explicit capability policy mapping."
-                    ))
+                    unresolved.append(
+                        ResolvedUnresolvedItem(
+                            item_id=f"plugin:{p_name}",
+                            category="plugin_option",
+                            rationale=f"Third-party plugin '{p_name}' requires explicit capability policy mapping.",
+                        )
+                    )
         return caps, unresolved
 
     def _derive_migration_requirements(
@@ -394,33 +454,37 @@ class ProjectAnalyzer:
         flows: Dict[str, DocumentFlowSpec],
         api_requests: List[ApiDocumentationRequest],
         resolved_modules: Dict[str, ResolvedApiModule],
-        capabilities: List[ResolvedCapabilityItem]
+        capabilities: List[ResolvedCapabilityItem],
     ) -> List[MigrationRequirement]:
         reqs: List[MigrationRequirement] = []
 
         # 1. Document Flow Authored-Sequence Requirement
         for file_path, flow in flows.items():
-            reqs.append(MigrationRequirement(
-                requirement_id=f"flow:{file_path}",
-                category=RequirementCategory.FLOW,
-                disposition=RequirementDisposition.PRESERVE,
-                source_construct=f"DocumentFlow({file_path})",
-                required_outcome="PRESERVE_AUTHORED_ELEMENT_SEQUENCE",
-                rationale="Preserve exact authored element ordering (prose before API summary/members).",
-                provenance_location=file_path
-            ))
+            reqs.append(
+                MigrationRequirement(
+                    requirement_id=f"flow:{file_path}",
+                    category=RequirementCategory.FLOW,
+                    disposition=RequirementDisposition.PRESERVE,
+                    source_construct=f"DocumentFlow({file_path})",
+                    required_outcome="PRESERVE_AUTHORED_ELEMENT_SEQUENCE",
+                    rationale="Preserve exact authored element ordering (prose before API summary/members).",
+                    provenance_location=file_path,
+                )
+            )
 
         # 2. 1:1 API Symbol Parity Requirement
         for mod_path, mod_obj in resolved_modules.items():
-            reqs.append(MigrationRequirement(
-                requirement_id=f"api:{mod_path}",
-                category=RequirementCategory.API,
-                disposition=RequirementDisposition.TRANSFORM,
-                source_construct=f"ApiModule({mod_path})",
-                required_outcome="PRESERVE_API_MODULE_DOCUMENTATION",
-                rationale=f"Represent all {len(mod_obj.symbols)} resolved symbols with 1:1 API identity.",
-                provenance_location=mod_path
-            ))
+            reqs.append(
+                MigrationRequirement(
+                    requirement_id=f"api:{mod_path}",
+                    category=RequirementCategory.API,
+                    disposition=RequirementDisposition.TRANSFORM,
+                    source_construct=f"ApiModule({mod_path})",
+                    required_outcome="PRESERVE_API_MODULE_DOCUMENTATION",
+                    rationale=f"Represent all {len(mod_obj.symbols)} resolved symbols with 1:1 API identity.",
+                    provenance_location=mod_path,
+                )
+            )
 
         # 3. Theme Features Requirements
         if cfg:
@@ -430,14 +494,16 @@ class ProjectAnalyzer:
                     if feat in ("navigation.instant", "navigation.top", "toc.follow")
                     else RequirementDisposition.TRANSFORM
                 )
-                reqs.append(MigrationRequirement(
-                    requirement_id=f"theme_feature:{feat}",
-                    category=RequirementCategory.THEME_FEATURE,
-                    disposition=disposition,
-                    source_construct=f"theme.features.{feat}",
-                    required_outcome="REALIZE_THEME_BEHAVIOR",
-                    rationale=f"Realize theme feature {feat} via equivalent theme mechanism or account as chrome-only.",
-                    provenance_location="mkdocs.yml:theme.features"
-                ))
+                reqs.append(
+                    MigrationRequirement(
+                        requirement_id=f"theme_feature:{feat}",
+                        category=RequirementCategory.THEME_FEATURE,
+                        disposition=disposition,
+                        source_construct=f"theme.features.{feat}",
+                        required_outcome="REALIZE_THEME_BEHAVIOR",
+                        rationale=f"Realize theme feature {feat} via equivalent theme mechanism or account as chrome-only.",
+                        provenance_location="mkdocs.yml:theme.features",
+                    )
+                )
 
         return reqs

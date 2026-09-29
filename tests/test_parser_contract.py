@@ -12,33 +12,36 @@ Tests explicitly proving the DocumentIR parser contract across 10 key boundary s
 9. Links nested deeply inside lists/blockquotes retaining relative/absolute metadata.
 10. MkDocs constructs in invalid contexts (e.g. inline text, inside code spans).
 """
+
 import pytest
 from sphinx_mkdocs_migrate.parsing.markdown import MarkdownParser
 from sphinx_mkdocs_migrate.parsing.markdown_ir import NodeKind
+
 
 @pytest.fixture
 def parser():
     return MarkdownParser()
 
+
 def test_1_exact_line_ranges_deeply_nested(parser):
     doc = (
-        "# Heading 1\n"                     # L1
-        "\n"                                 # L2
-        "=== \"Tab Alpha\"\n"                # L3
-        "\n"                                 # L4
-        "    !!! warning \"Careful\"\n"      # L5
-        "\n"                                 # L6
-        "        ???+ note \"Expandable\"\n" # L7
-        "\n"                                 # L8
-        "            ```python\n"            # L9
-        "            x = 1\n"                # L10
-        "            ```\n"                  # L11
-        "\n"                                 # L12
-        "=== \"Tab Beta\"\n"                 # L13
-        "    Final text.\n"                  # L14
+        "# Heading 1\n"  # L1
+        "\n"  # L2
+        '=== "Tab Alpha"\n'  # L3
+        "\n"  # L4
+        '    !!! warning "Careful"\n'  # L5
+        "\n"  # L6
+        '        ???+ note "Expandable"\n'  # L7
+        "\n"  # L8
+        "            ```python\n"  # L9
+        "            x = 1\n"  # L10
+        "            ```\n"  # L11
+        "\n"  # L12
+        '=== "Tab Beta"\n'  # L13
+        "    Final text.\n"  # L14
     )
     doc_ir = parser.parse_text(doc, "deep.md")
-    
+
     # Root level
     nodes = doc_ir.nodes
     assert len(nodes) == 2
@@ -57,7 +60,7 @@ def test_1_exact_line_ranges_deeply_nested(parser):
     assert tab_a.kind == NodeKind.TAB_ITEM
     assert tab_a.start_line == 3
     assert tab_a.end_line == 11
-    
+
     # Warning Admonition
     assert len(tab_a.children) == 1
     adm = tab_a.children[0]
@@ -86,9 +89,10 @@ def test_1_exact_line_ranges_deeply_nested(parser):
     assert tab_b.start_line == 13
     assert tab_b.end_line == 14
 
+
 def test_2_nested_lists_inside_admonitions_and_tabs(parser):
     doc = (
-        "!!! note \"List Container\"\n"
+        '!!! note "List Container"\n'
         "    - Item 1\n"
         "        * Sub-item A\n"
         "        * Sub-item B\n"
@@ -96,14 +100,15 @@ def test_2_nested_lists_inside_admonitions_and_tabs(parser):
     )
     doc_ir = parser.parse_text(doc, "nested_lists.md")
     all_nodes = list(doc_ir.walk())
-    
+
     adm = doc_ir.nodes[0]
     assert adm.kind == NodeKind.ADMONITION
-    
+
     lists = [n for n in all_nodes if n.kind == NodeKind.LIST]
     items = [n for n in all_nodes if n.kind == NodeKind.LIST_ITEM]
     assert len(lists) >= 1
     assert len(items) >= 2
+
 
 def test_3_blockquotes_containing_nested_lists_and_links(parser):
     doc = (
@@ -118,20 +123,21 @@ def test_3_blockquotes_containing_nested_lists_and_links(parser):
     assert any(n.kind == NodeKind.BLOCK_QUOTE for n in all_nodes)
     links = [n for n in all_nodes if n.kind == NodeKind.LINK_REF]
     assert len(links) == 2
-    
-    ext_link = next(l for l in links if l.raw_text == "Docs")
+
+    ext_link = next(lnk for lnk in links if lnk.raw_text == "Docs")
     assert ext_link.metadata["is_external"] is True
     assert ext_link.metadata["href"] == "https://example.com/guide"
 
-    int_link = next(l for l in links if l.raw_text == "Local")
+    int_link = next(lnk for lnk in links if lnk.raw_text == "Local")
     assert int_link.metadata["is_external"] is False
     assert int_link.metadata["href"] == "../intro.md"
 
+
 def test_4_tab_admonition_details_code_hierarchy(parser):
     doc = (
-        "=== \"Python\"\n"
-        "    !!! tip \"Tip Box\"\n"
-        "        ??? info \"Details Inside\"\n"
+        '=== "Python"\n'
+        '    !!! tip "Tip Box"\n'
+        '        ??? info "Details Inside"\n'
         "            ```bash\n"
         "            pip install sphinx\n"
         "            ```\n"
@@ -149,14 +155,15 @@ def test_4_tab_admonition_details_code_hierarchy(parser):
     assert code.kind == NodeKind.CODE_BLOCK
     assert code.metadata["info_string"] == "bash"
 
+
 def test_5_multiple_independent_tab_groups(parser):
     doc = (
-        "=== \"Group 1 - Tab 1\"\n"
+        '=== "Group 1 - Tab 1"\n'
         "    Group 1 content\n"
         "\n"
         "## Section Heading\n"
         "\n"
-        "=== \"Group 2 - Tab 1\"\n"
+        '=== "Group 2 - Tab 1"\n'
         "    Group 2 content\n"
     )
     doc_ir = parser.parse_text(doc, "multi_tabs.md")
@@ -166,15 +173,16 @@ def test_5_multiple_independent_tab_groups(parser):
     assert tab_sets[1].children[0].metadata["title"] == "Group 2 - Tab 1"
     assert doc_ir.nodes[1].kind == NodeKind.HEADING
 
+
 def test_6_code_fences_containing_fake_constructs(parser):
     doc = (
         "```python\n"
         "# This should NOT trigger any IR directive nodes\n"
-        "!!! note \"Fake Note\"\n"
-        "=== \"Fake Tab\"\n"
-        "???+ details \"Fake Details\"\n"
+        '!!! note "Fake Note"\n'
+        '=== "Fake Tab"\n'
+        '???+ details "Fake Details"\n'
         "::: fake.symbol.Directive\n"
-        "--8<-- \"fake_snippet.py\"\n"
+        '--8<-- "fake_snippet.py"\n'
         "```\n"
     )
     doc_ir = parser.parse_text(doc, "code_isolation.md")
@@ -187,6 +195,7 @@ def test_6_code_fences_containing_fake_constructs(parser):
     assert not any(n.kind == NodeKind.DETAILS_DROPDOWN for n in all_nodes)
     assert not any(n.kind == NodeKind.API_DIRECTIVE for n in all_nodes)
     assert not any(n.kind == NodeKind.SNIPPET_INCLUDE for n in all_nodes)
+
 
 def test_7_four_backtick_fence_enclosing_three_backtick_fence(parser):
     doc = (
@@ -207,22 +216,17 @@ def test_7_four_backtick_fence_enclosing_three_backtick_fence(parser):
     assert nodes[0].end_line == 7
     assert "```python" in nodes[0].raw_text
 
+
 def test_8_unclosed_code_fence_graceful_handling(parser):
-    doc = (
-        "```python\n"
-        "def unclosed():\n"
-        "    pass\n"
-    )
+    doc = "```python\ndef unclosed():\n    pass\n"
     doc_ir = parser.parse_text(doc, "unclosed.md")
     assert len(doc_ir.nodes) == 1
     assert doc_ir.nodes[0].kind == NodeKind.CODE_BLOCK
     assert doc_ir.nodes[0].start_line == 1
 
+
 def test_9_links_in_deep_container_structures(parser):
-    doc = (
-        "=== \"Tab\"\n"
-        "    - Item with [Nested Link](./sub/page.md#anchor)\n"
-    )
+    doc = '=== "Tab"\n    - Item with [Nested Link](./sub/page.md#anchor)\n'
     doc_ir = parser.parse_text(doc, "container_link.md")
     all_nodes = list(doc_ir.walk())
     link_nodes = [n for n in all_nodes if n.kind == NodeKind.LINK_REF]
@@ -233,11 +237,12 @@ def test_9_links_in_deep_container_structures(parser):
     assert link.metadata["href"] == "./sub/page.md#anchor"
     assert link.metadata["is_external"] is False
 
+
 def test_10_inline_mkdocs_syntax_not_recognized_as_blocks(parser):
     doc = (
-        "Here is some text with `!!! note \"inline code\"` and `::: symbol` inside code spans.\n"
+        'Here is some text with `!!! note "inline code"` and `::: symbol` inside code spans.\n'
         "\n"
-        "Also sentence containing === \"Not A Tab\" in the middle of a paragraph.\n"
+        'Also sentence containing === "Not A Tab" in the middle of a paragraph.\n'
     )
     doc_ir = parser.parse_text(doc, "inline_text.md")
     all_nodes = list(doc_ir.walk())

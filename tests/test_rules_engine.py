@@ -1,4 +1,5 @@
 """Unit and integration tests for Milestone 3.2: Declarative Migration Rules and Compatibility Engine."""
+
 import pytest
 from sphinx_mkdocs_migrate.parsing.markdown import MarkdownParser
 from sphinx_mkdocs_migrate.parsing.markdown_ir import NodeKind, BaseIRNode
@@ -6,13 +7,16 @@ from sphinx_mkdocs_migrate.analyzer.models import Classification
 from sphinx_mkdocs_migrate.rules.engine import MigrationRuleEngine
 from sphinx_mkdocs_migrate.rules.models import MigrationRule, MigrationTarget, RuleKind
 
+
 @pytest.fixture
 def parser():
     return MarkdownParser()
 
+
 @pytest.fixture
 def rule_engine():
     return MigrationRuleEngine()
+
 
 def test_rule_catalog_completeness(rule_engine):
     """Verify that all target IR construct kinds have declarative rules with requirements."""
@@ -24,6 +28,7 @@ def test_rule_catalog_completeness(rule_engine):
     assert NodeKind.SNIPPET_INCLUDE in registered_kinds
     assert NodeKind.MERMAID_DIAGRAM in registered_kinds
     assert NodeKind.LINK_REF in registered_kinds
+
 
 def test_admonition_rule_evaluation_and_preservation(parser, rule_engine):
     doc = """
@@ -44,6 +49,7 @@ def test_admonition_rule_evaluation_and_preservation(parser, rule_engine):
     assert "myst-parser>=2.0.0" in ev.required_packages
     assert "title" in ev.preserved_attributes
     assert "body" in ev.preserved_attributes
+
 
 def test_tabs_and_dropdowns_rules_preservation(parser, rule_engine):
     doc = """
@@ -68,6 +74,7 @@ def test_tabs_and_dropdowns_rules_preservation(parser, rule_engine):
     assert det_eval.target.directive_name == "dropdown"
     assert "open_state" in det_eval.preserved_attributes
 
+
 def test_api_directive_manual_review_and_rationale(parser, rule_engine):
     doc = """::: my_package.core.Client"""
     doc_ir = parser.parse_text(doc, "api.md")
@@ -78,6 +85,7 @@ def test_api_directive_manual_review_and_rationale(parser, rule_engine):
     assert "my_package.core.Client" in api_eval.action_item
     assert "sphinx.ext.autodoc" in api_eval.required_extensions
     assert "sphinx.ext.napoleon" in api_eval.required_extensions
+
 
 def test_snippet_and_mermaid_rules(parser, rule_engine):
     doc = """
@@ -91,13 +99,18 @@ graph TD;
     doc_ir = parser.parse_text(doc, "snippet_mermaid.md")
     evaluations = rule_engine.evaluate_document(doc_ir)
 
-    snip_eval = next(e for e in evaluations if e.rule_id == "rule.snippet.literalinclude")
+    snip_eval = next(
+        e for e in evaluations if e.rule_id == "rule.snippet.literalinclude"
+    )
     assert snip_eval.target.directive_name == "literalinclude"
     assert "filepath" in snip_eval.preserved_attributes
 
-    mermaid_eval = next(e for e in evaluations if e.rule_id == "rule.mermaid.sphinxcontrib")
+    mermaid_eval = next(
+        e for e in evaluations if e.rule_id == "rule.mermaid.sphinxcontrib"
+    )
     assert mermaid_eval.target.directive_name == "mermaid"
     assert "sphinxcontrib.mermaid" in mermaid_eval.required_extensions
+
 
 def test_custom_declarative_rule_extensibility_without_modifying_engine():
     """Prove that MigrationRuleEngine is purely declarative and requires zero engine changes for new constructs."""
@@ -110,13 +123,13 @@ def test_custom_declarative_rule_extensibility_without_modifying_engine():
             framework="MyST",
             directive_name="raw",
             required_extensions=["myst_parser"],
-            required_py_packages=["myst-parser>=2.0.0"]
+            required_py_packages=["myst-parser>=2.0.0"],
         ),
         preserves=["raw_text"],
         changes=["html_to_raw_directive"],
         conditions={},
         manual_if=[],
-        description="Transforms raw HTML blocks into MyST {raw} directives."
+        description="Transforms raw HTML blocks into MyST {raw} directives.",
     )
 
     custom_engine = MigrationRuleEngine(custom_rules=[custom_rule])
@@ -124,7 +137,7 @@ def test_custom_declarative_rule_extensibility_without_modifying_engine():
         kind=NodeKind.HTML_BLOCK,
         start_line=10,
         end_line=12,
-        raw_text="<div class='custom'>hello</div>"
+        raw_text="<div class='custom'>hello</div>",
     )
 
     evaluation = custom_engine.evaluate_node(html_node)
@@ -134,11 +147,15 @@ def test_custom_declarative_rule_extensibility_without_modifying_engine():
     assert evaluation.classification == Classification.TRANSFORM
     assert "raw_text" in evaluation.preserved_attributes
 
+
 def test_unregistered_node_kind_yields_none_silently(rule_engine):
     """Verify that unsupported/unregistered IR node kinds do not trigger false transformations."""
     empty_engine = MigrationRuleEngine(custom_rules=[])
-    dummy_node = BaseIRNode(kind=NodeKind.HTML_BLOCK, start_line=1, end_line=1, raw_text="<div></div>")
+    dummy_node = BaseIRNode(
+        kind=NodeKind.HTML_BLOCK, start_line=1, end_line=1, raw_text="<div></div>"
+    )
     assert empty_engine.evaluate_node(dummy_node) is None
+
 
 def test_migration_actions_generation(parser, rule_engine):
     """Test normalized MigrationAction generation from DocumentIR."""
