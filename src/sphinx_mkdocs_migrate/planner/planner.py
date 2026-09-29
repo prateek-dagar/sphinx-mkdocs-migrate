@@ -479,9 +479,9 @@ class MigrationPlanner:
                         if node.kind == NodeKind.HEADING:
                             title = node.metadata.get("title", "")
                             if not title and node.raw_text:
-                                m = re.match(r"^#{1,6}\s+(.+?)\s*$", node.raw_text.strip())
-                                if m:
-                                    title = m.group(1)
+                                heading_m = re.match(r"^#{1,6}\s+(.+?)\s*$", node.raw_text.strip())
+                                if heading_m is not None:
+                                    title = heading_m.group(1)
                             if title:
                                 clean_title = clean_heading_text(title)
                                 pm_slug = python_markdown_slug(clean_title)
@@ -811,13 +811,13 @@ class MigrationPlanner:
                         s_tree = ast.parse(
                             s_file.read_text(encoding="utf-8"), filename=str(s_file)
                         )
-                        for node in ast.walk(s_tree):
-                            if isinstance(node, ast.Call):
+                        for ast_node in ast.walk(s_tree):
+                            if isinstance(ast_node, ast.Call):
                                 if (
-                                    isinstance(node.func, ast.Name)
-                                    and node.func.id == "Path"
+                                    isinstance(ast_node.func, ast.Name)
+                                    and ast_node.func.id == "Path"
                                 ):
-                                    for arg in node.args:
+                                    for arg in ast_node.args:
                                         if isinstance(arg, ast.Constant) and isinstance(
                                             arg.value, str
                                         ):
@@ -830,10 +830,10 @@ class MigrationPlanner:
                                             ):
                                                 script_meta["output_dir"] = arg.value
                                 elif (
-                                    isinstance(node.func, ast.Attribute)
-                                    and node.func.attr == "open"
+                                    isinstance(ast_node.func, ast.Attribute)
+                                    and ast_node.func.attr == "open"
                                 ):
-                                    for arg in node.args:
+                                    for arg in ast_node.args:
                                         if isinstance(arg, ast.Constant) and isinstance(
                                             arg.value, str
                                         ):
@@ -880,20 +880,20 @@ class MigrationPlanner:
                             py_f.read_text(encoding="utf-8"), filename=str(py_f)
                         )
                         module_docstring = ast.get_docstring(module_ast)
-                        for node in module_ast.body:
+                        for stmt_node in module_ast.body:
                             if isinstance(
-                                node, ast.ClassDef
-                            ) and not node.name.startswith("_"):
-                                members["classes"].append(node.name)
+                                stmt_node, ast.ClassDef
+                            ) and not stmt_node.name.startswith("_"):
+                                members["classes"].append(stmt_node.name)
                             elif isinstance(
-                                node, (ast.FunctionDef, ast.AsyncFunctionDef)
-                            ) and not node.name.startswith("_"):
-                                members["functions"].append(node.name)
-                            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                                stmt_node, (ast.FunctionDef, ast.AsyncFunctionDef)
+                            ) and not stmt_node.name.startswith("_"):
+                                members["functions"].append(stmt_node.name)
+                            elif isinstance(stmt_node, (ast.Assign, ast.AnnAssign)):
                                 targets = (
-                                    node.targets
-                                    if isinstance(node, ast.Assign)
-                                    else [node.target]
+                                    stmt_node.targets
+                                    if isinstance(stmt_node, ast.Assign)
+                                    else [stmt_node.target]
                                 )
                                 for target in targets:
                                     if isinstance(
