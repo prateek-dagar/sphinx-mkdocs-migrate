@@ -14,13 +14,14 @@ Every contribution—whether code, documentation, bug reports, feature requests,
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/prateek-dagar"><img src="https://avatars.githubusercontent.com/u/prateek-dagar" width="100px;" alt="Prateek Dagar"/><br /><sub><b>Prateek Dagar</b></sub></a><br /><a href="#code-prateek-dagar" title="Code">💻</a> <a href="#doc-prateek-dagar" title="Documentation">📖</a> <a href="#maintenance-prateek-dagar" title="Maintenance">🚧</a> <a href="#design-prateek-dagar" title="Design">🎨</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/prateek-dagar"><img src="https://avatars.githubusercontent.com/u/prateek-dagar?s=100" width="100px;" alt="Prateek Dagar"/><br /><sub><b>Prateek Dagar</b></sub></a><br /><a href="https://github.com/prateek-dagar/sphinx-mkdocs-migrate/commits?author=prateek-dagar" title="Code">💻</a> <a href="https://github.com/prateek-dagar/sphinx-mkdocs-migrate/commits?author=prateek-dagar" title="Documentation">📖</a> <a href="#maintenance-prateek-dagar" title="Maintenance">🚧</a> <a href="#design-prateek-dagar" title="Design">🎨</a> <a href="https://github.com/prateek-dagar/sphinx-mkdocs-migrate/commits?author=prateek-dagar" title="Tests">⚠️</a></td>
     </tr>
   </tbody>
 </table>
 
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
+
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ---
