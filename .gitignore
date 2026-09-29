@@ -24,6 +24,7 @@ htmlcov/
 scratch/
 .system_generated/
 *.log
+.env*
 
 # IDE & OS
 .DS_Store
