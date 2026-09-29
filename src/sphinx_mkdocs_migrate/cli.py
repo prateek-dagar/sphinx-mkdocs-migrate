@@ -544,6 +544,10 @@ def migrate(
             console.print(
                 f"  • MkDocs dependencies to remove: [yellow]{', '.join(to_remove)}[/yellow]"
             )
+        if plan.obsolete_files:
+            console.print(
+                f"  • Obsolete MkDocs files to remove: [yellow]{', '.join(plan.obsolete_files)}[/yellow]"
+            )
         console.print()
 
         if not auto_approve and _is_interactive():

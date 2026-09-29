@@ -343,6 +343,35 @@ def test_clean_obsolete_mkdocs_generator_scripts(tmp_path):
     assert not script_dir.exists()  # Empty directory cleaned up
 
 
+def test_cleanup_obsolete_mkdocs_yml(tmp_path: Path):
+    """Verify mkdocs.yml is unlinked when migration is applied to disk."""
+    mkdocs_file = tmp_path / "mkdocs.yml"
+    mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+    from sphinx_mkdocs_migrate.planner.models import MigrationPlanMetadata
+
+    plan = MigrationPlan(
+        project_root=str(tmp_path),
+        source_mkdocs_config=ConfigAnalysis(
+            config_file_path="mkdocs.yml",
+            site_name="Test",
+        ),
+        obsolete_files=["mkdocs.yml"],
+        metadata=MigrationPlanMetadata(generated_at="2026-09-30T00:00:00Z"),
+    )
+
+    # In dry-run mode, file remains
+    engine = TransformationEngine(plan)
+    report_dry = engine.execute(write_to_disk=False)
+    assert "mkdocs.yml" in report_dry.cleaned_files
+    assert mkdocs_file.exists()
+
+    # In apply mode, file is unlinked
+    report_apply = engine.execute(write_to_disk=True)
+    assert "mkdocs.yml" in report_apply.cleaned_files
+    assert not mkdocs_file.exists()
+
+
 def test_inject_orphan_metadata():
     """Verify orphan: true frontmatter injection for standalone documents."""
     # Case 1: No frontmatter

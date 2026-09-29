@@ -20,7 +20,7 @@ from ..planner.ci import (
 )
 from ..analyzer.models import NavigationItem
 from ..analyzer.dependencies import KNOWN_MKDOCS_PACKAGES
-from ..analyzer.mkdocs import detect_obsolete_generator_scripts
+from ..analyzer.mkdocs import detect_obsolete_mkdocs_files
 from ..analyzer.ci import (
     resolve_github_action_ref,
     DEFAULT_CHECKOUT_TAG,
@@ -1066,20 +1066,21 @@ class TransformationEngine:
         return changes
 
     def _clean_obsolete_mkdocs_files(self, write_to_disk: bool) -> List[str]:
-        """Remove obsolete MkDocs-specific generator scripts and hooks (e.g. scripts/gen_ref_nav.py).
+        """Remove obsolete MkDocs configuration files, generator scripts, and hooks.
 
         Why this cleanup is necessary:
-        1. In MkDocs, dynamic generator plugins like `mkdocs-gen-files` execute scripts at build
+        1. mkdocs.yml (or mkdocs.yaml) is superseded by the generated Sphinx conf.py and documentation structure.
+        2. In MkDocs, dynamic generator plugins like `mkdocs-gen-files` execute scripts at build
            time to generate in-memory virtual markdown stubs (`with mkdocs_gen_files.open(...)`).
-        2. During migration to Sphinx, `sphinx-mkdocs-migrate` statically materializes permanent,
+        3. During migration to Sphinx, `sphinx-mkdocs-migrate` statically materializes permanent,
            checked-in MyST markdown documentation stubs (e.g., in `docs/reference/`) using native
            Sphinx autodoc/autosummary directives.
-        3. Once MkDocs dependencies are removed from the project's dependency manifest (`pyproject.toml`),
+        4. Once MkDocs dependencies are removed from the project's dependency manifest (`pyproject.toml`),
            any remaining generator script importing `mkdocs_gen_files` becomes broken and unrunnable
            (`ModuleNotFoundError: No module named 'mkdocs_gen_files'`).
-        4. Leaving these scripts behind also triggers false positive failures in repo linters and formatters.
-        5. Therefore, after all permanent documentation artifacts are synthesized, this cleanup phase
-           safely unlinks obsolete generator scripts and removes their enclosing directory if it becomes empty.
+        5. Leaving these scripts behind also triggers false positive failures in repo linters and formatters.
+        6. Therefore, after all permanent documentation artifacts are synthesized, this cleanup phase
+           safely unlinks obsolete MkDocs files/scripts and removes their enclosing directory if it becomes empty.
         """
         removed: List[str] = []
         if not self.plan.source_mkdocs_config:
@@ -1088,7 +1089,7 @@ class TransformationEngine:
         candidate_scripts = (
             self.plan.obsolete_files
             if self.plan.obsolete_files
-            else detect_obsolete_generator_scripts(
+            else detect_obsolete_mkdocs_files(
                 self.project_root,
                 self.plan.source_mkdocs_config,
                 additional_scripts=[

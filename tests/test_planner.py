@@ -246,3 +246,17 @@ def test_ci_planner_tox_and_github_actions():
     plan = plan_ci_workflow(ci_analysis=None, dep_analysis=dep_analysis)
     assert plan.checkout_pinned_ref == chk_pinned
     assert plan.setup_uv_pinned_ref == uv_pinned
+
+
+def test_planner_includes_mkdocs_yml_in_obsolete_files(tmp_path: Path):
+    """Ensure mkdocs.yml is added to plan.obsolete_files for removal upon migration."""
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text("# Home\n", encoding="utf-8")
+    (tmp_path / "mkdocs.yml").write_text("site_name: TestSite\n", encoding="utf-8")
+
+    plan = MigrationPlanner(tmp_path).create_plan(
+        deterministic_timestamp="2026-09-30T00:00:00Z"
+    )
+
+    assert "mkdocs.yml" in plan.obsolete_files

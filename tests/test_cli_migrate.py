@@ -71,6 +71,7 @@ def test_cli_migrate_apply_auto_approve(tmp_path: Path):
         assert "Migration Pre-flight Check:" in result.output
         assert "APPLYING" in result.output
         assert (tmp_path / "docs" / "conf.py").exists()
+        assert not (tmp_path / "mkdocs.yml").exists()
 
 
 def test_cli_migrate_apply_cancelled_by_user(tmp_path: Path):
@@ -90,6 +91,7 @@ def test_cli_migrate_apply_cancelled_by_user(tmp_path: Path):
             assert result.exit_code == 0
             assert "Migration cancelled by user." in result.output
             assert not (tmp_path / "docs" / "conf.py").exists()
+            assert (tmp_path / "mkdocs.yml").exists()
 
 
 def test_cli_migrate_install_and_uninstall_flags(tmp_path: Path):

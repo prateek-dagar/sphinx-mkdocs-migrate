@@ -60,6 +60,11 @@ class MkDocsConfigAnalyzer:
             return ConfigAnalysis()
 
         try:
+            rel_config_path = str(mkdocs_file.relative_to(self.project_root))
+        except ValueError:
+            rel_config_path = str(mkdocs_file)
+
+        try:
             content = mkdocs_file.read_text(encoding="utf-8")
             data = yaml.load(content, Loader=SafeMkDocsLoader) or {}
         except Exception:
@@ -67,7 +72,7 @@ class MkDocsConfigAnalyzer:
                 # Fallback simple load
                 data = yaml.safe_load(mkdocs_file.read_text(encoding="utf-8")) or {}
             except Exception:
-                return ConfigAnalysis()
+                return ConfigAnalysis(config_file_path=rel_config_path)
 
         theme_data = data.get("theme", {})
         theme_logo = None
@@ -199,6 +204,7 @@ class MkDocsConfigAnalyzer:
         use_dir_urls = bool(raw_use_dir) if raw_use_dir is not None else None
 
         return ConfigAnalysis(
+            config_file_path=rel_config_path,
             site_name=site_name,
             site_description=data.get("site_description"),
             site_author=data.get("site_author"),
@@ -231,20 +237,36 @@ class MkDocsConfigAnalyzer:
         )
 
 
-def detect_obsolete_generator_scripts(
+def detect_obsolete_mkdocs_files(
     project_root: Path,
     mkdocs_config: Optional[ConfigAnalysis],
     additional_scripts: Optional[List[str]] = None,
 ) -> List[str]:
-    """Detect obsolete MkDocs generator scripts and hooks (e.g. scripts/gen_ref_nav.py) that should be removed.
+    """Detect obsolete MkDocs configuration files, generator scripts, and hooks that should be removed upon migration.
 
-    These scripts run at build time under MkDocs (e.g., mkdocs-gen-files) to generate virtual stubs.
-    Once Sphinx autodoc/autosummary is configured and MkDocs dependencies are removed, these scripts
-    become obsolete, broken, and trigger repo lint failures.
+    1. MkDocs configuration files (e.g. mkdocs.yml, mkdocs.yaml) which are superseded by Sphinx conf.py.
+    2. Generator scripts and hooks (e.g. scripts/gen_ref_nav.py) that run at build time under MkDocs
+       (e.g., mkdocs-gen-files) to generate virtual stubs. Once Sphinx autodoc/autosummary is configured
+       and MkDocs dependencies are removed, these scripts become obsolete, broken, and trigger repo lint failures.
     """
-    if not mkdocs_config:
-        return []
+    obsolete: List[str] = []
 
+    # 1. MkDocs configuration files
+    if mkdocs_config and mkdocs_config.config_file_path:
+        cfg_path = project_root / mkdocs_config.config_file_path
+        if cfg_path.is_file() and mkdocs_config.config_file_path not in obsolete:
+            obsolete.append(mkdocs_config.config_file_path)
+
+    # Check common root configuration candidates if not already detected
+    for candidate in ["mkdocs.yml", "mkdocs.yaml", ".mkdocs.yml", ".mkdocs.yaml"]:
+        cand_path = project_root / candidate
+        if cand_path.is_file() and candidate not in obsolete:
+            obsolete.append(candidate)
+
+    if not mkdocs_config:
+        return sorted(obsolete)
+
+    # 2. Generator scripts and hooks
     candidate_scripts: set[str] = set()
     gen_cfg = mkdocs_config.plugins_config.get("gen-files", {})
     if isinstance(gen_cfg, dict):
@@ -261,7 +283,6 @@ def detect_obsolete_generator_scripts(
         if isinstance(hook, str):
             candidate_scripts.add(hook)
 
-    obsolete: List[str] = []
     for s_rel in sorted(candidate_scripts):
         s_path = project_root / s_rel
         if s_path.is_file():
@@ -274,6 +295,10 @@ def detect_obsolete_generator_scripts(
                 or "mkdocstrings" in content
                 or (isinstance(gen_cfg, dict) and s_rel in gen_cfg.get("scripts", []))
             ):
-                obsolete.append(s_rel)
+                if s_rel not in obsolete:
+                    obsolete.append(s_rel)
 
-    return obsolete
+    return sorted(obsolete)
+
+
+detect_obsolete_generator_scripts = detect_obsolete_mkdocs_files

@@ -38,7 +38,7 @@ from .conf_builder import build_conf_py
 from .toctree import resolve_navigation_docnames
 from .ci import plan_ci_workflow
 from .policy import PolicyEngine
-from ..analyzer.mkdocs import detect_obsolete_generator_scripts
+from ..analyzer.mkdocs import detect_obsolete_mkdocs_files
 from ..analyzer.project import ProjectAnalyzer
 from ..rules.engine import MigrationRuleEngine
 from ..rules.models import MigrationAction
@@ -1989,13 +1989,13 @@ class MigrationPlanner:
             else datetime.datetime.now(datetime.timezone.utc).isoformat()
         )
 
-        # Planned obsolete files to clean up post-migration (e.g. generator scripts and MkDocs hooks)
+        # Planned obsolete files to clean up post-migration (e.g. generator scripts, hooks, and mkdocs.yml)
         pipe_scripts = [
             pipe.generator_script
             for pipe in gen_pipelines_plan
             if pipe.generator_script
         ]
-        planned_obsolete_files = detect_obsolete_generator_scripts(
+        planned_obsolete_files = detect_obsolete_mkdocs_files(
             project_root=self.project_root,
             mkdocs_config=report.mkdocs_config,
             additional_scripts=pipe_scripts,

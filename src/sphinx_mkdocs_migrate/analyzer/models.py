@@ -163,6 +163,7 @@ class ThemeFont(BaseModel):
 
 
 class ConfigAnalysis(BaseModel):
+    config_file_path: Optional[str] = None
     site_name: Optional[str] = None
     site_description: Optional[str] = None
     site_author: Optional[str] = None

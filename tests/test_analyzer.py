@@ -328,6 +328,26 @@ fake nested code
             self.assertTrue(ci_analysis.has_nox)
             self.assertTrue(ci_analysis.gitlab_ci_detected)
 
+    def test_mkdocs_config_path_and_obsolete_files_detection(self):
+        import tempfile
+        from sphinx_mkdocs_migrate.analyzer.mkdocs import (
+            MkDocsConfigAnalyzer,
+            detect_obsolete_mkdocs_files,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            cfg = tmp / "mkdocs.yml"
+            cfg.write_text("site_name: TestProject\n", encoding="utf-8")
+            analyzer = MkDocsConfigAnalyzer(tmp)
+            analysis = analyzer.analyze()
+
+            self.assertEqual(analysis.config_file_path, "mkdocs.yml")
+            self.assertEqual(analysis.site_name, "TestProject")
+
+            obsolete = detect_obsolete_mkdocs_files(tmp, analysis)
+            self.assertIn("mkdocs.yml", obsolete)
+
 
 if __name__ == "__main__":
     unittest.main()
