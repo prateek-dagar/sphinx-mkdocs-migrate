@@ -293,7 +293,7 @@ class TransformationValidator:
                 conf_dest = docs_src / "conf.py"
                 conf_dest.parent.mkdir(parents=True, exist_ok=True)
 
-                # Inspect declared html_theme
+                final_conf = conf_code
                 theme_match = re.search(
                     r"html_theme\s*=\s*['\"]([^'\"]+)['\"]", conf_code
                 )
@@ -315,9 +315,21 @@ class TransformationValidator:
                         theme_mod = target_theme.replace("-", "_")
                         if importlib.util.find_spec(theme_mod) is None:
                             theme_status = f"THEME_UNAVAILABLE:{target_theme}"
+                            fallback_theme = (
+                                "furo"
+                                if importlib.util.find_spec("furo") is not None
+                                else "alabaster"
+                            )
+                            final_conf = re.sub(
+                                r"html_theme\s*=\s*['\"][^'\"]+['\"]",
+                                f'html_theme = "{fallback_theme}"',
+                                final_conf,
+                            )
+                            final_conf = final_conf.replace(
+                                f'"{theme_mod}",', ""
+                            ).replace(f"'{theme_mod}',", "")
 
                 # Ensure sphinx_immaterial has html_theme_options in conf if missing
-                final_conf = conf_code
                 if (
                     "sphinx_immaterial" in final_conf
                     and "html_theme_options" not in final_conf
