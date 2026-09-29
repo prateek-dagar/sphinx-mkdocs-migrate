@@ -23,6 +23,7 @@ def resolve_github_action_ref(
             ["git", "ls-remote", "--tags", url],
             text=True,
             timeout=5,
+            stdin=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
         tag_shas: Dict[str, str] = {}

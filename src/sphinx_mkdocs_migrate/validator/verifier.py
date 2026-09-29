@@ -345,7 +345,13 @@ class TransformationValidator:
             cmd.extend([str(docs_src), str(docs_out)])
 
             try:
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                proc = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    stdin=subprocess.DEVNULL,
+                    timeout=30,
+                )
                 combined_output = f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
 
                 # Parse stderr/stdout for Sphinx warnings

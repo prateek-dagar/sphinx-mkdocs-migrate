@@ -300,7 +300,13 @@ fake nested code
                 "pages:\n  script:\n    - mkdocs build\n", encoding="utf-8"
             )
 
-            ci_analysis = CIAnalyzer(tmp).analyze()
+            from unittest.mock import patch
+
+            with patch(
+                "sphinx_mkdocs_migrate.analyzer.ci.resolve_github_action_ref",
+                return_value=("v7.0.1", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
+            ):
+                ci_analysis = CIAnalyzer(tmp).analyze()
 
             self.assertEqual(ci_analysis.ci_system, "github_actions")
             self.assertTrue(ci_analysis.github_actions_detected)
