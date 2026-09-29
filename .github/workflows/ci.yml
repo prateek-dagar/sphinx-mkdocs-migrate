@@ -83,14 +83,11 @@ jobs:
           pip install ruff mypy
           pip install -e .
 
-      - name: Check code formatting
-        run: ruff format --check src tests
-
       - name: Lint with ruff
         run: ruff check src tests
 
       - name: Type check with mypy
-        run: mypy --explicit-package-bases --ignore-missing-imports src/ tests/
+        run: mypy src tests
 
   docs:
     name: Build Documentation

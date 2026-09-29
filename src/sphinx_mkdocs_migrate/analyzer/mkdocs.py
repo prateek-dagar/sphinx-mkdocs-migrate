@@ -160,7 +160,7 @@ class MkDocsConfigAnalyzer:
         # Determine docs_dir: if config is in a subdirectory (e.g. docs/en/mkdocs.yml), adjust relative path
         raw_docs_dir = data.get("docs_dir", "docs")
         if mkdocs_file.parent != self.project_root:
-            rel_parent = str(mkdocs_file.parent.relative_to(self.project_root))
+            rel_parent = mkdocs_file.parent.relative_to(self.project_root).as_posix()
             if raw_docs_dir == "docs":
                 adjusted_docs_dir = (
                     f"{rel_parent}/docs"

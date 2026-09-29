@@ -93,7 +93,7 @@ class ProjectAnalyzer:
         self.flow_extractor.mkdocs_config = {"markdown_extensions": md_exts}
 
         for md_file in md_files:
-            rel_path = str(md_file.relative_to(self.project_root))
+            rel_path = md_file.relative_to(self.project_root).as_posix()
             page = self.flow_extractor.extract_from_file(md_file, rel_path=rel_path)
             flows[rel_path] = page.flow
 
@@ -104,7 +104,7 @@ class ProjectAnalyzer:
                     api_requests.append(elem.content)
 
             logical_route = (
-                str(md_file.relative_to(docs_dir).with_suffix(""))
+                md_file.relative_to(docs_dir).with_suffix("").as_posix()
                 if md_file.is_relative_to(docs_dir)
                 else md_file.stem
             )

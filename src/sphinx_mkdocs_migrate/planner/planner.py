@@ -206,7 +206,7 @@ class MigrationPlanner:
         site_pages: Dict[str, DocumentationPage] = {}
 
         for md_file in md_files:
-            rel_file = str(md_file.relative_to(self.project_root))
+            rel_file = md_file.relative_to(self.project_root).as_posix()
             raw_text = md_file.read_text(encoding="utf-8")
             raw_lines = raw_text.splitlines()
 

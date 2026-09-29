@@ -83,7 +83,7 @@ class CIAnalyzer:
 
         if github_actions_detected:
             for yml_file in sorted(github_workflows.glob("*.y*ml")):
-                rel = str(yml_file.relative_to(self.project_root))
+                rel = yml_file.relative_to(self.project_root).as_posix()
                 workflow_files.append(rel)
                 try:
                     content = yml_file.read_text(encoding="utf-8")
@@ -121,7 +121,9 @@ class CIAnalyzer:
         # 2. Local test & doc runners: tox.ini
         tox_ini = self.project_root / "tox.ini"
         has_tox = tox_ini.is_file()
-        tox_file = str(tox_ini.relative_to(self.project_root)) if has_tox else None
+        tox_file = (
+            tox_ini.relative_to(self.project_root).as_posix() if has_tox else None
+        )
         tox_has_docs_env = False
         tox_docs_commands: List[str] = []
         tox_dependency_spec: Optional[str] = None
@@ -160,12 +162,16 @@ class CIAnalyzer:
         if not rtd_config.exists():
             rtd_config = self.project_root / ".readthedocs.yml"
         has_rtd = rtd_config.is_file()
-        rtd_file = str(rtd_config.relative_to(self.project_root)) if has_rtd else None
+        rtd_file = (
+            rtd_config.relative_to(self.project_root).as_posix() if has_rtd else None
+        )
 
         # 4. Nox runner (noxfile.py)
         noxfile = self.project_root / "noxfile.py"
         has_nox = noxfile.is_file()
-        nox_file = str(noxfile.relative_to(self.project_root)) if has_nox else None
+        nox_file = (
+            noxfile.relative_to(self.project_root).as_posix() if has_nox else None
+        )
 
         # 5. Makefile
         makefile = self.project_root / "Makefile"

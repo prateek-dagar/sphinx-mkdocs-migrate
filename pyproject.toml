@@ -138,6 +138,7 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.mypy]
 python_version = "3.10"
+mypy_path = "src"
 explicit_package_bases = true
 ignore_missing_imports = true
 warn_unused_ignores = true

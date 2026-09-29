@@ -27,10 +27,12 @@ class HtmlFlowRole(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
-def _get_classes(tag: Tag) -> List[str]:
+def _get_classes(tag: Any) -> List[str]:
+    if not isinstance(tag, Tag):
+        return []
     cls = tag.get("class")
     if isinstance(cls, list):
-        return [c for c in cls]
+        return [str(c) for c in cls]
     elif isinstance(cls, str):
         return cls.split()
     return []
@@ -192,6 +194,8 @@ class HtmlFlowParser:
                         )
                         if child_objs:
                             for obj in child_objs:
+                                if not isinstance(obj, Tag):
+                                    continue
                                 h = obj.find(["h1", "h2", "h3", "h4", "h5", "h6"])
                                 hid_val = h.get("id") if isinstance(h, Tag) else None
                                 hid = str(hid_val) if hid_val is not None else None

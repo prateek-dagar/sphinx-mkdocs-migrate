@@ -168,7 +168,7 @@ class TransformationEngine:
         autorefs_targets: Dict[str, Path],
     ) -> Tuple[DocumentTransformationResult, bool]:
         """Transforms a single Markdown file applying MyST actions, autorefs, and frontmatter sanitization."""
-        source_file_rel = str(md_file.relative_to(self.project_root))
+        source_file_rel = md_file.relative_to(self.project_root).as_posix()
         orig_content = md_file.read_text(encoding="utf-8")
         source_fp = hashlib.sha256(orig_content.encode("utf-8")).hexdigest()[:16]
 
@@ -273,7 +273,7 @@ class TransformationEngine:
         files_written = 0
 
         for md_file in all_md_files:
-            source_file_rel = str(md_file.relative_to(self.project_root))
+            source_file_rel = md_file.relative_to(self.project_root).as_posix()
             actions = actions_by_file.get(source_file_rel, [])
             result, is_mod = self._transform_markdown_file(
                 md_file=md_file,
