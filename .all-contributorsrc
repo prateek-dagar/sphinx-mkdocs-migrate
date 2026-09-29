@@ -8,19 +8,6 @@
   ],
   "imageSize": 100,
   "commit": false,
-  "contributors": [
-    {
-      "login": "prateek-dagar",
-      "name": "Prateek Dagar",
-      "avatar_url": "https://avatars.githubusercontent.com/u/prateek-dagar",
-      "profile": "https://github.com/prateek-dagar",
-      "contributions": [
-        "code",
-        "doc",
-        "maintenance",
-        "design"
-      ]
-    }
-  ],
+  "contributors": [],
   "contributorsPerLine": 7
 }

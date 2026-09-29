@@ -7,12 +7,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
-
-- Initial pre-release packaging, CI, documentation, and contributor tooling.
-
 ## [0.0.1.dev0] - 2026-09-29
 
 ### Added
 
 - First development snapshot of the MkDocs-to-Sphinx migration engine.
+- Initial pre-release packaging, CI, documentation, and contributor tooling.
