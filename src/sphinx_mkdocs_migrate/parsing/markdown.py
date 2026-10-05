@@ -36,7 +36,11 @@ def clean_heading_text(title: str) -> str:
 def python_markdown_slug(title: str) -> str:
     """Compute heading slug matching Python-Markdown's toc extension."""
     clean_title = clean_heading_text(title)
-    v = unicodedata.normalize("NFKD", clean_title).encode("ascii", "ignore").decode("ascii")
+    v = (
+        unicodedata.normalize("NFKD", clean_title)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
     v = re.sub(r"[^\w\s-]", "", v).strip().lower()
     return re.sub(r"[-\s]+", "-", v)
 
