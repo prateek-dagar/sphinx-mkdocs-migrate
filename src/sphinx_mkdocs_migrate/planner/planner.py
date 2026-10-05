@@ -479,14 +479,19 @@ class MigrationPlanner:
                         if node.kind == NodeKind.HEADING:
                             title = node.metadata.get("title", "")
                             if not title and node.raw_text:
-                                heading_m = re.match(r"^#{1,6}\s+(.+?)\s*$", node.raw_text.strip())
+                                heading_m = re.match(
+                                    r"^#{1,6}\s+(.+?)\s*$", node.raw_text.strip()
+                                )
                                 if heading_m is not None:
                                     title = heading_m.group(1)
                             if title:
                                 clean_title = clean_heading_text(title)
                                 pm_slug = python_markdown_slug(clean_title)
                                 myst_slug = myst_default_slug(clean_title)
-                                if pm_slug in referenced_anchors and pm_slug != myst_slug:
+                                if (
+                                    pm_slug in referenced_anchors
+                                    and pm_slug != myst_slug
+                                ):
                                     harmonized_anchor_slugs.add(pm_slug)
                                     heading_actions.append(
                                         MigrationAction(
